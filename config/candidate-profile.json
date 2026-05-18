@@ -1,0 +1,72 @@
+{
+  "name": "Jane Doe",
+  "title": "Full Stack Software Engineer",
+  "email": "jane.doe@email.com",
+  "phone": "+91-9876543210",
+  "location": "Bengaluru, India",
+  "linkedin": "https://linkedin.com/in/janedoe",
+  "github": "https://github.com/janedoe",
+  "portfolio": "https://janedoe.dev",
+
+  "summary": "Experienced Full Stack Engineer with 4+ years building scalable web applications. Proficient in React, Node.js, TypeScript, and cloud infrastructure. Passionate about clean architecture and developer experience.",
+
+  "skills": {
+    "languages": ["TypeScript", "JavaScript", "Python", "Go", "SQL"],
+    "frontend": ["React", "Next.js", "Redux", "Tailwind CSS", "HTML5", "CSS3"],
+    "backend": ["Node.js", "Express", "NestJS", "FastAPI", "REST", "GraphQL"],
+    "databases": ["PostgreSQL", "MySQL", "MongoDB", "Redis", "SQLite"],
+    "cloud": ["AWS", "GCP", "Docker", "Kubernetes", "Terraform"],
+    "tools": ["Git", "GitHub Actions", "CI/CD", "Jest", "Playwright"]
+  },
+
+  "experience": [
+    {
+      "company": "TechCorp India Pvt Ltd",
+      "role": "Software Engineer II",
+      "duration": "Jan 2023 – Present",
+      "highlights": [
+        "Built microservices serving 500K+ daily active users",
+        "Reduced API latency by 40% through Redis caching",
+        "Led migration from monolith to microservices architecture"
+      ]
+    },
+    {
+      "company": "StartupXYZ",
+      "role": "Junior Full Stack Developer",
+      "duration": "Jun 2021 – Dec 2022",
+      "highlights": [
+        "Developed React dashboard with real-time analytics",
+        "Integrated payment gateways (Razorpay, Stripe)",
+        "Authored 80%+ unit test coverage across all services"
+      ]
+    }
+  ],
+
+  "education": [
+    {
+      "institution": "Indian Institute of Technology, Delhi",
+      "degree": "B.Tech in Computer Science",
+      "year": "2021"
+    }
+  ],
+
+  "certifications": [
+    "AWS Certified Solutions Architect – Associate",
+    "Google Professional Cloud Developer"
+  ],
+
+  "targetRoles": [
+    "Software Engineer",
+    "Full Stack Developer",
+    "Backend Engineer",
+    "Senior Software Engineer",
+    "Platform Engineer"
+  ],
+
+  "preferredLocations": ["Bengaluru", "Hyderabad", "Mumbai", "Remote"],
+
+  "minSalaryLPA": 20,
+  "maxExperienceYears": 8,
+  "openToRemote": true,
+  "noticePeriodDays": 30
+}

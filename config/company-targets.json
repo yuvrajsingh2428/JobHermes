@@ -1,0 +1,59 @@
+[
+  {
+    "name": "Google",
+    "careers_url": "https://careers.google.com/jobs/results/?q=software+engineer&location=India",
+    "search_keywords": ["software engineer", "backend engineer", "full stack"],
+    "priority": "high",
+    "enabled": true
+  },
+  {
+    "name": "Microsoft",
+    "careers_url": "https://jobs.microsoft.com/en/search?q=software+engineer&l=India",
+    "search_keywords": ["software engineer", "SDE", "platform engineer"],
+    "priority": "high",
+    "enabled": true
+  },
+  {
+    "name": "Amazon",
+    "careers_url": "https://www.amazon.jobs/en/search?base_query=software+engineer&loc_query=India",
+    "search_keywords": ["software development engineer", "SDE", "backend"],
+    "priority": "high",
+    "enabled": true
+  },
+  {
+    "name": "Flipkart",
+    "careers_url": "https://www.flipkartcareers.com/#!/joblist",
+    "search_keywords": ["software engineer", "backend", "full stack"],
+    "priority": "medium",
+    "enabled": true
+  },
+  {
+    "name": "Swiggy",
+    "careers_url": "https://careers.swiggy.com/#/careers",
+    "search_keywords": ["software engineer", "backend", "platform"],
+    "priority": "medium",
+    "enabled": true
+  },
+  {
+    "name": "Razorpay",
+    "careers_url": "https://razorpay.com/jobs/",
+    "search_keywords": ["software engineer", "backend engineer"],
+    "priority": "medium",
+    "enabled": true
+  },
+  {
+    "name": "Zepto",
+    "careers_url": "https://jobs.zeptonow.com/",
+    "search_keywords": ["software engineer", "backend"],
+    "priority": "low",
+    "enabled": true
+  },
+  {
+    "name": "LinkedIn",
+    "careers_url": "https://www.linkedin.com/jobs/search/?keywords=software+engineer&location=India&f_TPR=r86400",
+    "search_keywords": ["software engineer", "full stack developer", "backend engineer"],
+    "priority": "high",
+    "enabled": true,
+    "is_aggregator": true
+  }
+]

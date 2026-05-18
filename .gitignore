@@ -1,0 +1,10 @@
+node_modules/
+dist/
+*.js.map
+.env
+data/
+logs/
+output/
+*.db
+*.db-shm
+*.db-wal

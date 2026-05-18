@@ -1,0 +1,47 @@
+{
+  "name": "jobhermes",
+  "version": "1.0.0",
+  "description": "Autonomous AI-powered job hunting agent",
+  "main": "dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "build:watch": "tsc --watch",
+    "start": "node dist/index.js",
+    "dev": "ts-node src/index.ts",
+    "scan": "ts-node src/index.ts --scan",
+    "report": "ts-node src/index.ts --report",
+    "resume": "ts-node src/index.ts --resume",
+    "cover-letter": "ts-node src/index.ts --cover-letter",
+    "clean": "rimraf dist",
+    "lint": "eslint src --ext .ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "job-hunting",
+    "ai",
+    "automation",
+    "openai",
+    "typescript"
+  ],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@types/uuid": "^10.0.0",
+    "axios": "^1.6.0",
+    "better-sqlite3": "^9.4.3",
+    "cheerio": "^1.0.0",
+    "dotenv": "^16.4.5",
+    "node-cron": "^3.0.3",
+    "node-fetch": "^2.7.0",
+    "openai": "^4.47.3",
+    "uuid": "^14.0.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.8",
+    "@types/cheerio": "^0.22.35",
+    "@types/node": "^22.10.0",
+    "@types/node-cron": "^3.0.11",
+    "ts-node": "^10.9.2",
+    "typescript": "^5.4.5"
+  }
+}
