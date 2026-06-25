@@ -28,7 +28,7 @@
   "dependencies": {
     "@types/uuid": "^10.0.0",
     "axios": "^1.6.0",
-    "better-sqlite3": "^9.4.3",
+    "better-sqlite3": "^12.11.1",
     "cheerio": "^1.0.0",
     "dotenv": "^16.4.5",
     "node-cron": "^3.0.3",
