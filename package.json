@@ -14,7 +14,8 @@
     "cover-letter": "ts-node src/index.ts --cover-letter",
     "clean": "rimraf dist",
     "lint": "eslint src --ext .ts",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "push-staging": "node scripts/push-staging.js"
   },
   "keywords": [
     "job-hunting",

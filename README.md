@@ -20,6 +20,7 @@ JobHermes runs on a daily schedule, scrapes job boards, scores opportunities aga
 | 📦 **Application Pack** | Generate resume + cover letter together, auto-marked in DB |
 | ⏰ **Scheduler** | Daily 9 AM IST scan via `node-cron` with timezone support |
 | 🧭 **Hermes Agent** | Central orchestration layer managing all tasks with a task registry |
+| 🖥️ **Web Dashboard** | Premium local dark-mode dashboard to monitor matches, edit statuses, and preview resumes |
 
 ---
 
@@ -138,6 +139,12 @@ npx ts-node src/index.ts --apply <job-id> professional
 ### Check status / top jobs in DB
 ```bash
 npx ts-node src/index.ts --status
+```
+
+### Start the Web Dashboard
+```bash
+npx ts-node src/index.ts --dashboard
+# Runs locally on http://localhost:3000
 ```
 
 ### Start daemon (scheduled mode, runs daily at 9 AM IST)

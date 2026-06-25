@@ -1,0 +1,31 @@
+name: Keep Github Calendar Green
+
+on:
+  schedule:
+    - cron: '30 17 * * *' # Daily at 11:00 PM IST (17:30 UTC)
+  workflow_dispatch:      # Allows manual trigger
+
+permissions:
+  contents: write
+
+jobs:
+  make-green:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          ref: main
+
+      - name: Update activity log
+        run: |
+          mkdir -p .github
+          echo "Daily activity check: $(date)" >> .github/daily-activity.txt
+
+      - name: Commit and Push
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add .github/daily-activity.txt
+          git commit -m "chore: daily activity update [skip ci]" || echo "No changes to commit"
+          git push origin main
