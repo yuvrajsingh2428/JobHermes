@@ -31,6 +31,7 @@
     "better-sqlite3": "^12.11.1",
     "cheerio": "^1.0.0",
     "dotenv": "^16.4.5",
+    "express": "^5.2.1",
     "node-cron": "^3.0.3",
     "node-fetch": "^2.7.0",
     "openai": "^4.47.3",
@@ -39,6 +40,7 @@
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.8",
     "@types/cheerio": "^0.22.35",
+    "@types/express": "^5.0.6",
     "@types/node": "^22.10.0",
     "@types/node-cron": "^3.0.11",
     "ts-node": "^10.9.2",

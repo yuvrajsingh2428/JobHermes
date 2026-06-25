@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JobHermes Dashboard – Autonomous AI Job Hunting Agent</title>
+  <meta name="description" content="Manage scraped jobs, score breakdowns, application tracking, and tailored resumes/cover letters.">
+  <!-- Google Fonts (Inter) -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="index.css">
+</head>
+<body>
+  <!-- Header -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="logo-group">
+        <span class="logo-icon">⚡</span>
+        <div>
+          <h1 id="header-title" class="logo-text">JobHermes</h1>
+          <p class="logo-subtitle">Autonomous AI Job Agent</p>
+        </div>
+      </div>
+      
+      <!-- Scan status and control -->
+      <div class="scan-status-container">
+        <div id="scan-status-badge" class="scan-status-badge idle">
+          <span class="pulse-dot"></span>
+          <span id="scan-status-text">Ready</span>
+        </div>
+        <button id="btn-run-scan" class="btn btn-primary">
+          <span class="btn-icon">🔍</span> Start Job Scan
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <div class="app-container">
+    <!-- Stats Banner -->
+    <section class="stats-grid" aria-label="Job hunting statistics">
+      <div class="stat-card" id="stat-scraped">
+        <div class="stat-icon">🔍</div>
+        <div class="stat-details">
+          <div class="stat-value" id="val-scraped">0</div>
+          <div class="stat-label">Total Scraped</div>
+        </div>
+      </div>
+      <div class="stat-card" id="stat-matched">
+        <div class="stat-icon text-success">🎯</div>
+        <div class="stat-details">
+          <div class="stat-value" id="val-matched">0</div>
+          <div class="stat-label">Good Matches</div>
+        </div>
+      </div>
+      <div class="stat-card" id="stat-applied">
+        <div class="stat-icon text-warning">📤</div>
+        <div class="stat-details">
+          <div class="stat-value" id="val-applied">0</div>
+          <div class="stat-label">Applications Sent</div>
+        </div>
+      </div>
+      <div class="stat-card" id="stat-companies">
+        <div class="stat-icon text-info">🏢</div>
+        <div class="stat-details">
+          <div class="stat-value" id="val-companies">0</div>
+          <div class="stat-label">Companies Tracked</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Navigation Tabs -->
+    <nav class="nav-tabs" aria-label="Dashboard navigation">
+      <button id="tab-jobs" class="tab-btn active">🎯 Scraped Jobs</button>
+      <button id="tab-profile" class="tab-btn">📄 Candidate Profile</button>
+      <button id="tab-targets" class="tab-btn">🏢 Target Companies</button>
+    </nav>
+
+    <!-- Content Sections -->
+    <main class="main-content">
+      <!-- Section: Jobs List -->
+      <section id="sect-jobs" class="tab-content active">
+        <div class="filter-bar">
+          <div class="filter-group">
+            <label for="filter-status">Status:</label>
+            <select id="filter-status" class="form-control">
+              <option value="">All Statuses</option>
+              <option value="new">New</option>
+              <option value="reviewed">Reviewed</option>
+              <option value="applied">Applied</option>
+              <option value="interviewing">Interviewing</option>
+              <option value="offered">Offered</option>
+              <option value="rejected">Rejected</option>
+              <option value="skipped">Skipped</option>
+            </select>
+          </div>
+
+          <div class="filter-group">
+            <label for="filter-score">Min Score:</label>
+            <input type="number" id="filter-score" class="form-control score-input" min="0" max="100" placeholder="e.g. 60">
+          </div>
+
+          <div class="filter-group flex-grow">
+            <label for="search-company">Search Company:</label>
+            <input type="text" id="search-company" class="form-control" placeholder="Search targets...">
+          </div>
+        </div>
+
+        <!-- Jobs Grid -->
+        <div id="jobs-grid" class="jobs-grid">
+          <!-- Loading placeholder or actual job cards -->
+          <div class="loading-spinner-container">
+            <div class="spinner"></div>
+            <p>Loading scraped jobs...</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Candidate Profile -->
+      <section id="sect-profile" class="tab-content">
+        <div class="card bg-slate-800">
+          <div class="profile-header-card">
+            <h2 id="prof-name">Loading Profile...</h2>
+            <p id="prof-title" class="text-indigo-400 font-semibold"></p>
+            <p id="prof-contact" class="profile-contacts"></p>
+          </div>
+          <div class="profile-summary">
+            <h3>Executive Summary</h3>
+            <p id="prof-summary"></p>
+          </div>
+          <div class="skills-section">
+            <h3>Profile Skills System</h3>
+            <div id="skills-container" class="skills-categories-grid">
+              <!-- Dynamically populated with tag clouds -->
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section: Target Companies -->
+      <section id="sect-targets" class="tab-content">
+        <div class="card bg-slate-800">
+          <h2>Monitored Company Targets</h2>
+          <p class="section-desc">Job boards scraped daily by the scheduler agent.</p>
+          <div class="table-responsive">
+            <table class="targets-table">
+              <thead>
+                <tr>
+                  <th>Company</th>
+                  <th>Priority</th>
+                  <th>Keywords</th>
+                  <th>Source URL</th>
+                  <th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="targets-tbody">
+                <!-- Dynamically populated -->
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- Modal: Tailor Document & Preview -->
+  <div id="doc-modal" class="modal" aria-hidden="true">
+    <div class="modal-dialog">
+      <div class="modal-header">
+        <h2 id="modal-title">Tailor Application Materials</h2>
+        <button id="btn-close-modal" class="modal-close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <!-- Control buttons for tailoring -->
+        <div class="tailor-controls">
+          <div class="form-group">
+            <label for="cover-letter-tone">Cover Letter Tone:</label>
+            <select id="cover-letter-tone" class="form-control">
+              <option value="professional">Professional / Formal</option>
+              <option value="enthusiastic">Enthusiastic / Energetic</option>
+              <option value="concise">Concise / Direct</option>
+            </select>
+          </div>
+          <div class="btn-group-row">
+            <button id="btn-generate-resume" class="btn btn-secondary">Generate Tailored Resume</button>
+            <button id="btn-generate-cover" class="btn btn-secondary">Generate Cover Letter</button>
+            <button id="btn-generate-pack" class="btn btn-primary">Generate Full Pack</button>
+          </div>
+        </div>
+
+        <div id="doc-status-msg" class="doc-status-msg hidden"></div>
+
+        <!-- Document Preview Container -->
+        <div class="doc-preview-tabs">
+          <button id="btn-tab-resume-preview" class="preview-tab active hidden">Tailored Resume</button>
+          <button id="btn-tab-cover-preview" class="preview-tab hidden">Cover Letter</button>
+        </div>
+        <div id="preview-frame-container" class="preview-frame-container hidden">
+          <iframe id="preview-iframe" title="Document Preview"></iframe>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal: Edit Job Status -->
+  <div id="status-modal" class="modal" aria-hidden="true">
+    <div class="modal-dialog max-w-sm">
+      <div class="modal-header">
+        <h2>Update Application Status</h2>
+        <button id="btn-close-status-modal" class="modal-close-btn">&times;</button>
+      </div>
+      <div class="modal-body">
+        <form id="form-update-status">
+          <input type="hidden" id="status-job-id">
+          <div class="form-group">
+            <label for="job-status-select">Current Status:</label>
+            <select id="job-status-select" class="form-control">
+              <option value="new">New</option>
+              <option value="reviewed">Reviewed</option>
+              <option value="applied">Applied</option>
+              <option value="interviewing">Interviewing</option>
+              <option value="offered">Offered</option>
+              <option value="rejected">Rejected</option>
+              <option value="skipped">Skipped</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label for="job-notes-input">Application Notes:</label>
+            <textarea id="job-notes-input" class="form-control" rows="4" placeholder="Enter interview details, contact info, follow-up dates, etc..."></textarea>
+          </div>
+          <button type="submit" class="btn btn-primary btn-block">Save Status</button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <script src="index.js"></script>
+</body>
+</html>

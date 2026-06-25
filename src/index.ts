@@ -7,6 +7,7 @@ import { loadConfig } from './utils/config';
 import { HermesAgent } from './agent/hermes-agent';
 import { Scheduler } from './scheduler/scheduler';
 import { logger } from './utils/logger';
+import { DashboardServer } from './dashboard/server';
 
 const args = process.argv.slice(2);
 
@@ -102,11 +103,32 @@ async function main(): Promise<void> {
     return;
   }
 
-  // Default mode: run scheduler (daemon mode)
+  if (flag === '--dashboard') {
+    logger.info('Starting JobHermes Dashboard Server...');
+    const dashboard = new DashboardServer(agent, 3000);
+    dashboard.start();
+
+    const shutdownDashboard = () => {
+      logger.section('Shutting Down Dashboard');
+      dashboard.stop();
+      agent.shutdown();
+      process.exit(0);
+    };
+
+    process.on('SIGINT', shutdownDashboard);
+    process.on('SIGTERM', shutdownDashboard);
+    return;
+  }
+
+  // Default mode: run scheduler (daemon mode) + dashboard server
   logger.info('Starting in daemon mode (scheduled scans)...');
 
   const scheduler = new Scheduler(agent, config.cronSchedule, config.timezone);
   scheduler.start();
+
+  logger.info('Starting JobHermes Dashboard Server...');
+  const dashboard = new DashboardServer(agent, 3000);
+  dashboard.start();
 
   // Optionally run an immediate scan on startup
   if (args.includes('--run-now')) {
@@ -118,6 +140,7 @@ async function main(): Promise<void> {
   const shutdown = () => {
     logger.section('Shutting Down');
     scheduler.stop();
+    dashboard.stop();
     agent.shutdown();
     process.exit(0);
   };
@@ -125,7 +148,7 @@ async function main(): Promise<void> {
   process.on('SIGINT', shutdown);
   process.on('SIGTERM', shutdown);
 
-  logger.success('JobHermes daemon is running. Press Ctrl+C to stop.');
+  logger.success('JobHermes daemon & dashboard are running. Press Ctrl+C to stop.');
 }
 
 main().catch((err) => {

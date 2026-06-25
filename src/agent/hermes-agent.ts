@@ -11,7 +11,7 @@ import { StorageService } from '../storage/database';
 import { ReportGenerator } from '../reports/report-generator';
 import { DocumentService } from '../ai/document-service';
 import { logger } from '../utils/logger';
-import { readJsonFile } from '../utils/helpers';
+import { readJsonFile, runConcurrent } from '../utils/helpers';
 import { HermesConfig } from '../types';
 
 export class HermesAgent {
@@ -23,6 +23,7 @@ export class HermesAgent {
   private documents: DocumentService;
   private config: HermesConfig;
   private tasks: Map<string, AgentTask> = new Map();
+  private isScanning = false;
 
   constructor(config: HermesConfig) {
     this.config = config;
@@ -92,6 +93,11 @@ export class HermesAgent {
   // ─── Main Daily Scan ───────────────────────────────────────
 
   async runDailyScan(): Promise<void> {
+    if (this.isScanning) {
+      logger.warn('Scan already in progress, skipping scan request.');
+      return;
+    }
+    this.isScanning = true;
     logger.section('Daily Job Scan Starting');
 
     const task = this.createTask('scrape');
@@ -121,14 +127,41 @@ export class HermesAgent {
 
       logger.info(`Total raw jobs: ${allRawJobs.length}`);
 
-      // 2. Score all jobs
-      const scored = this.scorer.scoreAll(allRawJobs, profile);
+      // 2. Initial Fast Score Pass
+      logger.info('Running preliminary scoring on raw jobs...');
+      const initialScored = this.scorer.scoreAll(allRawJobs, profile);
 
-      // 3. Filter by threshold
-      const filtered = this.scorer.filterByThreshold(scored, this.config.minScoreThreshold);
-      logger.info(`After scoring filter (>= ${this.config.minScoreThreshold}): ${filtered.length} jobs`);
+      // 3. Filter for promising matches to fetch details (initial score >= 30)
+      const promisingJobs = initialScored.filter((j) => (j.score ?? 0) >= 30);
+      logger.info(`Promising jobs selected for detail fetching: ${promisingJobs.length}/${initialScored.length}`);
 
-      // 4. Store in DB
+      // 4. Fetch full job descriptions concurrently
+      logger.info('Fetching full job descriptions...');
+      await runConcurrent(
+        promisingJobs,
+        async (job) => {
+          try {
+            logger.debug(`Fetching details for: ${job.title} @ ${job.company}`);
+            const fullDesc = await this.scraper.fetchJobDetail(job.url);
+            if (fullDesc && fullDesc.trim().length > 100) {
+              job.description = fullDesc;
+            }
+          } catch (err) {
+            logger.warn(`Failed to fetch job details for ${job.title} @ ${job.company}`, { error: String(err) });
+          }
+        },
+        this.config.scrapeConcurrency
+      );
+
+      // 5. Final Full Scoring Pass
+      logger.info('Running final scoring with complete job descriptions...');
+      const finalScored = this.scorer.scoreAll(promisingJobs, profile);
+
+      // 6. Filter by threshold
+      const filtered = this.scorer.filterByThreshold(finalScored, this.config.minScoreThreshold);
+      logger.info(`After final scoring filter (>= ${this.config.minScoreThreshold}): ${filtered.length} jobs`);
+
+      // 7. Store in DB
       for (const job of filtered) {
         const id = this.storage.upsertJob(job);
         if (job.score !== undefined && job.scoreBreakdown) {
@@ -136,7 +169,7 @@ export class HermesAgent {
         }
       }
 
-      // 5. Generate report
+      // 8. Generate report
       const topJobs = this.storage.getTopJobs(this.config.topJobsCount, this.config.minScoreThreshold);
       const companiesCovered = enabledTargets.map((t) => t.name);
 
@@ -161,6 +194,8 @@ export class HermesAgent {
       this.failTask(task, errMsg);
       this.storage.failScanRun(runId, errMsg);
       throw err;
+    } finally {
+      this.isScanning = false;
     }
   }
 
@@ -277,6 +312,14 @@ export class HermesAgent {
 
   private loadTargets(): CompanyTarget[] {
     return readJsonFile<CompanyTarget[]>(this.config.companyTargetsPath);
+  }
+
+  updateJobStatus(id: number, status: string, notes?: string): void {
+    this.storage.updateJobStatus(id, status as any, notes);
+  }
+
+  isCurrentlyScanning(): boolean {
+    return this.isScanning;
   }
 
   shutdown(): void {
