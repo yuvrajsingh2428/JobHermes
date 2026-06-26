@@ -24,7 +24,7 @@
     "openai",
     "typescript"
   ],
-  "author": "",
+  "author": "Yuvraj Singh",
   "license": "ISC",
   "dependencies": {
     "@types/uuid": "^10.0.0",
