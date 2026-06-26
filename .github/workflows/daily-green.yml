@@ -25,8 +25,8 @@ jobs:
 
       - name: Commit and Push
         run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
+          git config --local user.email "75690761+yuvrajsingh2428@users.noreply.github.com"
+          git config --local user.name "yuvrajsingh2428"
           git add .github/daily-activity.txt
           git commit -m "chore: daily activity update [skip ci]" || echo "No changes to commit"
           
