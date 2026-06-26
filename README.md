@@ -2,7 +2,7 @@
 
 > An autonomous AI-powered job hunting agent built with TypeScript, Node.js, OpenAI, and SQLite.
 
-JobHermes runs on a daily schedule, scrapes job boards, scores opportunities against your profile, stores results in a local database, and generates beautiful HTML reports. On-demand, it can produce tailored resumes and cover letters using GPT-4o.
+**JobHermes** is an automated job discovery and application assistant that runs on a scheduled workflow. It continuously scrapes job boards, analyzes and ranks opportunities based on your profile, stores job data locally, and generates clean, insightful HTML reports. On demand, JobHermes leverages GPT-4o to create personalized resumes and cover letters tailored to specific job descriptions, helping streamline the job application process.
 
 ---
 
