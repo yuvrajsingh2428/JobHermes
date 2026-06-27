@@ -12,6 +12,24 @@ import { DashboardServer } from './dashboard/server';
 const args = process.argv.slice(2);
 
 async function main(): Promise<void> {
+  const flag = args[0];
+  if (flag === '--help' || flag === '-h') {
+    logger.section('JobHermes CLI Usage');
+    logger.info('Options:');
+    logger.info('  --scan                                Run an immediate job scan');
+    logger.info('  --report                              Generate an HTML report from stored jobs');
+    logger.info('  --resume <job-id>                     Generate a tailored HTML resume for a job');
+    logger.info('  --cover-letter <job-id> [tone]        Generate a tailored cover letter');
+    logger.info('                                        Tones: professional (default) | enthusiastic | concise');
+    logger.info('  --apply <job-id> [tone]               Generate both resume and cover letter');
+    logger.info('  --status                              Display database statistics and top matched jobs');
+    logger.info('  --dashboard                           Start the local Web Dashboard');
+    logger.info('  --help, -h                            Show this help menu');
+    logger.info('');
+    logger.info('Note: If no arguments are provided, JobHermes runs in daemon mode (scheduled scans) and starts the dashboard.');
+    return;
+  }
+
   logger.section('JobHermes Starting Up');
 
   // Load and validate config
@@ -26,7 +44,6 @@ async function main(): Promise<void> {
   const agent = new HermesAgent(config);
 
   // Handle CLI flags for one-off operations
-  const flag = args[0];
 
   if (flag === '--scan') {
     // One-off immediate scan
