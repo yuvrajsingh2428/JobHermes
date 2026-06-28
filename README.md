@@ -114,6 +114,13 @@ npm run scan
 npx ts-node src/index.ts --scan
 ```
 
+### Show help menu
+```bash
+npx ts-node src/index.ts --help
+# or
+npx ts-node src/index.ts -h
+```
+
 ### Generate today's report (from existing DB data)
 ```bash
 npm run report
