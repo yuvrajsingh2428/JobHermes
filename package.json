@@ -31,15 +31,18 @@
     "npm": ">=9.0.0"
   },
   "dependencies": {
+    "@types/exceljs": "^0.5.3",
     "@types/uuid": "^10.0.0",
     "axios": "^1.6.0",
     "better-sqlite3": "^12.11.1",
     "cheerio": "^1.0.0",
     "dotenv": "^16.4.5",
+    "exceljs": "^4.4.0",
     "express": "^5.2.1",
     "node-cron": "^3.0.3",
     "node-fetch": "^2.7.0",
     "openai": "^4.47.3",
+    "playwright": "^1.63.0",
     "uuid": "^14.0.0"
   },
   "devDependencies": {
