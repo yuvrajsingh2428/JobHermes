@@ -1,33 +1,61 @@
 // ============================================================
-// JobHermes – Main Entry Point
+// JobHermes – SDET Job-Search Copilot Main Entry Point
 // ============================================================
 
 import 'dotenv/config';
+import fs from 'fs';
 import { loadConfig } from './utils/config';
 import { HermesAgent } from './agent/hermes-agent';
 import { Scheduler } from './scheduler/scheduler';
 import { logger } from './utils/logger';
 import { DashboardServer } from './dashboard/server';
+import { runVerifyTargets } from './sources/verify-targets';
+import { hasFillMarkers } from './types';
 
 const args = process.argv.slice(2);
 
 async function main(): Promise<void> {
   const flag = args[0];
+
+  if (flag === 'verify-targets' || flag === '--verify-targets') {
+    await runVerifyTargets();
+    return;
+  }
+
   if (flag === '--help' || flag === '-h') {
-    logger.section('JobHermes CLI Usage');
+    logger.section('JobHermes SDET Copilot CLI Usage');
     logger.info('Options:');
-    logger.info('  --scan                                Run an immediate job scan');
-    logger.info('  --report                              Generate an HTML report from stored jobs');
-    logger.info('  --resume <job-id>                     Generate a tailored HTML resume for a job');
-    logger.info('  --cover-letter <job-id> [tone]        Generate a tailored cover letter');
-    logger.info('                                        Tones: professional (default) | enthusiastic | concise');
-    logger.info('  --apply <job-id> [tone]               Generate both resume and cover letter');
+    logger.info('  verify-targets                        Hit all ATS APIs in company-targets.json & report status');
+    logger.info('  --scan                                Run an immediate job scan across active ATS sources');
+    logger.info('  --resume <job-id>                     Generate a tailored resume for a job');
+    logger.info('  --cover-letter <job-id> [tone]        Generate a tailored cover letter (professional | enthusiastic | concise)');
+    logger.info('  --apply <job-id> [tone]               Generate application pack (resume + cover letter)');
     logger.info('  --status                              Display database statistics and top matched jobs');
-    logger.info('  --dashboard                           Start the local Web Dashboard');
+    logger.info('  --dashboard                           Start the local Web Dashboard (127.0.0.1:3000)');
     logger.info('  --help, -h                            Show this help menu');
     logger.info('');
     logger.info('Note: If no arguments are provided, JobHermes runs in daemon mode (scheduled scans) and starts the dashboard.');
     return;
+  }
+
+  // Helper to assert candidate profile has no [FILL] markers before generating documents or sending emails
+  function assertNoFillMarkers(profilePath: string, baseResumePath = './config/base-resume.md') {
+    if (fs.existsSync(profilePath)) {
+      const content = JSON.parse(fs.readFileSync(profilePath, 'utf-8'));
+      const profileCheck = hasFillMarkers(content);
+      if (profileCheck.hasFill) {
+        logger.error(`Refusing to run: Unresolved [FILL] markers found in ${profilePath}:`);
+        profileCheck.markerPaths.slice(0, 5).forEach((m) => logger.error(`  - ${m}`));
+        process.exit(1);
+      }
+    }
+    if (fs.existsSync(baseResumePath)) {
+      const resumeContent = fs.readFileSync(baseResumePath, 'utf-8');
+      if (resumeContent.includes('[FILL')) {
+        logger.error(`Refusing to run: Unresolved [FILL] markers found in ${baseResumePath}`);
+        process.exit(1);
+      }
+    }
   }
 
   logger.section('JobHermes Starting Up');
@@ -43,27 +71,15 @@ async function main(): Promise<void> {
 
   const agent = new HermesAgent(config);
 
-  // Handle CLI flags for one-off operations
-
   if (flag === '--scan') {
-    // One-off immediate scan
     logger.info('Running immediate job scan...');
     await agent.runDailyScan();
     agent.shutdown();
     return;
   }
 
-  if (flag === '--report') {
-    // Generate report from existing DB data
-    logger.info('Generating report from stored jobs...');
-    const reportPath = await agent.generateReport();
-    logger.success(`Report generated: ${reportPath}`);
-    agent.shutdown();
-    return;
-  }
-
   if (flag === '--resume') {
-    // Generate resume for a specific job ID
+    assertNoFillMarkers(config.candidateProfilePath);
     const jobId = parseInt(args[1] || '0', 10);
     if (!jobId) {
       logger.error('Usage: npm run resume <job-id>');
@@ -76,7 +92,7 @@ async function main(): Promise<void> {
   }
 
   if (flag === '--cover-letter') {
-    // Generate cover letter for a specific job ID
+    assertNoFillMarkers(config.candidateProfilePath);
     const jobId = parseInt(args[1] || '0', 10);
     const tone = (args[2] as 'professional' | 'enthusiastic' | 'concise') || 'professional';
     if (!jobId) {
@@ -90,7 +106,7 @@ async function main(): Promise<void> {
   }
 
   if (flag === '--apply') {
-    // Generate full application pack (resume + cover letter) for a job
+    assertNoFillMarkers(config.candidateProfilePath);
     const jobId = parseInt(args[1] || '0', 10);
     const tone = (args[2] as 'professional' | 'enthusiastic' | 'concise') || 'professional';
     if (!jobId) {
@@ -106,7 +122,6 @@ async function main(): Promise<void> {
   }
 
   if (flag === '--status') {
-    // Show status from DB
     const storage = agent.getStorage();
     const total = storage.countJobs();
     const topJobs = agent.getTopJobs(5);
@@ -147,13 +162,11 @@ async function main(): Promise<void> {
   const dashboard = new DashboardServer(agent, 3000);
   dashboard.start();
 
-  // Optionally run an immediate scan on startup
   if (args.includes('--run-now')) {
     logger.info('Running immediate scan on startup...');
     await agent.runDailyScan();
   }
 
-  // Graceful shutdown handlers
   const shutdown = () => {
     logger.section('Shutting Down');
     scheduler.stop();

@@ -1,72 +1,56 @@
 {
-  "name": "Jane Doe",
-  "title": "Full Stack Software Engineer",
-  "email": "jane.doe@email.com",
-  "phone": "+91-9876543210",
-  "location": "Bengaluru, India",
-  "linkedin": "https://linkedin.com/in/janedoe",
-  "github": "https://github.com/janedoe",
-  "portfolio": "https://janedoe.dev",
+  "name": "[FILL]",
+  "title": "SDET / QA Automation Engineer",
+  "email": "[FILL]",
+  "phone": "[FILL]",
+  "location": "Delhi NCR, India",
+  "linkedin": "[FILL]",
+  "github": "[FILL]",
+  "portfolio": "[FILL]",
+  "resumePdfPath": "[FILL]",
 
-  "summary": "Experienced Full Stack Engineer with 4+ years building scalable web applications. Proficient in React, Node.js, TypeScript, and cloud infrastructure. Passionate about clean architecture and developer experience.",
-
-  "skills": {
-    "languages": ["TypeScript", "JavaScript", "Python", "Go", "SQL"],
-    "frontend": ["React", "Next.js", "Redux", "Tailwind CSS", "HTML5", "CSS3"],
-    "backend": ["Node.js", "Express", "NestJS", "FastAPI", "REST", "GraphQL"],
-    "databases": ["PostgreSQL", "MySQL", "MongoDB", "Redis", "SQLite"],
-    "cloud": ["AWS", "GCP", "Docker", "Kubernetes", "Terraform"],
-    "tools": ["Git", "GitHub Actions", "CI/CD", "Jest", "Playwright"]
-  },
-
-  "experience": [
-    {
-      "company": "TechCorp India Pvt Ltd",
-      "role": "Software Engineer II",
-      "duration": "Jan 2023 – Present",
-      "highlights": [
-        "Built microservices serving 500K+ daily active users",
-        "Reduced API latency by 40% through Redis caching",
-        "Led migration from monolith to microservices architecture"
-      ]
-    },
-    {
-      "company": "StartupXYZ",
-      "role": "Junior Full Stack Developer",
-      "duration": "Jun 2021 – Dec 2022",
-      "highlights": [
-        "Developed React dashboard with real-time analytics",
-        "Integrated payment gateways (Razorpay, Stripe)",
-        "Authored 80%+ unit test coverage across all services"
-      ]
-    }
-  ],
-
-  "education": [
-    {
-      "institution": "Indian Institute of Technology, Delhi",
-      "degree": "B.Tech in Computer Science",
-      "year": "2021"
-    }
-  ],
-
-  "certifications": [
-    "AWS Certified Solutions Architect – Associate",
-    "Google Professional Cloud Developer"
-  ],
+  "summary": "SDET with 1-3 years of experience specializing in test automation framework design, API testing, and CI/CD integration. Proficient in Java, Selenium, REST Assured, Playwright, and Jenkins.",
 
   "targetRoles": [
-    "Software Engineer",
-    "Full Stack Developer",
-    "Backend Engineer",
-    "Senior Software Engineer",
-    "Platform Engineer"
+    "SDET",
+    "QA Automation Engineer",
+    "Test Automation Engineer",
+    "Software Engineer in Test",
+    "QA Engineer (automation)",
+    "Automation Test Engineer"
   ],
 
-  "preferredLocations": ["Bengaluru", "Hyderabad", "Mumbai", "Remote"],
+  "experienceYears": 2,
+  "minExperienceYears": 1,
+  "maxExperienceYears": 3,
 
-  "minSalaryLPA": 20,
-  "maxExperienceYears": 8,
+  "skills": {
+    "languages": ["Java", "Python", "JavaScript", "SQL"],
+    "automationTools": ["Selenium", "Playwright", "Cypress", "REST Assured", "Postman", "Appium", "JMeter"],
+    "frameworks": ["TestNG", "JUnit", "Cucumber", "BDD", "PyTest"],
+    "devopsAndCiCd": ["Jenkins", "Git", "GitHub Actions", "Docker", "Linux"],
+    "databases": ["PostgreSQL", "MySQL", "MongoDB"],
+    "methodologies": ["Agile", "API Testing", "CI/CD Integration", "Framework Design", "Performance Testing"]
+  },
+
+  "preferredLocations": [
+    "Delhi NCR",
+    "Gurgaon",
+    "Noida",
+    "Delhi",
+    "Bangalore",
+    "Bengaluru",
+    "Remote India",
+    "Remote"
+  ],
+
   "openToRemote": true,
-  "noticePeriodDays": 30
+  "minSalaryLPA": "[FILL]",
+  "noticePeriodDays": 30,
+
+  "achievements": [
+    "[FILL: e.g. Designed and implemented REST Assured API test suite of 450+ tests, reducing regression execution time by 65%]",
+    "[FILL: e.g. Integrated Selenium/TestNG test suite into Jenkins CI/CD pipeline, catching 40+ critical defects pre-production]",
+    "[FILL: e.g. Built automated end-to-end framework using Playwright & TypeScript covering 85% of critical user journeys]"
+  ]
 }

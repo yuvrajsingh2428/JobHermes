@@ -301,6 +301,7 @@ export class StorageService {
       title: row['title'] as string,
       company: row['company'] as string,
       location: row['location'] as string,
+      isRemote: Boolean(row['is_remote'] ?? (/remote/i.test(String(row['location'] || '')) || /remote/i.test(String(row['title'] || '')))),
       url: row['url'] as string,
       description: row['description'] as string,
       salary: row['salary'] as string | undefined,
