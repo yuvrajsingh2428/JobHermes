@@ -14,6 +14,8 @@ import {
   ContactRecord,
   SignalRecord,
   SuppressionRecord,
+  OutreachRecord,
+  OutreachStatus,
 } from '../types';
 import { runMigrations } from './migrations';
 import { logger } from '../utils/logger';
@@ -320,31 +322,45 @@ export class StorageService {
     this.db.prepare('UPDATE contacts SET email = ?, email_status = ? WHERE id = ?').run(email, status, id);
   }
 
+  verifyContact(id: number): void {
+    this.db.prepare("UPDATE contacts SET email_status = 'verified' WHERE id = ?").run(id);
+  }
+
   // ─── Signals ───────────────────────────────────────────────
 
   addSignal(signal: Omit<SignalRecord, 'id'>): number {
     const result = this.db
-      .prepare(`INSERT INTO signals (company_id, signal_type, detail, url) VALUES (?, ?, ?, ?)`)
-      .run(signal.companyId, signal.signalType, signal.detail, signal.url || null);
+      .prepare(`INSERT INTO signals (company_id, signal_type, detail, url, source) VALUES (?, ?, ?, ?, ?)`)
+      .run(signal.companyId, signal.signalType, signal.detail, signal.url || null, signal.source || 'manual');
     return Number(result.lastInsertRowid);
   }
 
-  getSignalsForCompany(companyId: number): SignalRecord[] {
-    const rows = this.db.prepare('SELECT * FROM signals WHERE company_id = ? ORDER BY seen_at DESC').all(companyId) as Record<string, unknown>[];
+  getSignalsForCompany(companyId: number, options?: { excludeDemo?: boolean }): SignalRecord[] {
+    let query = 'SELECT * FROM signals WHERE company_id = ?';
+    if (options?.excludeDemo) {
+      query += " AND source NOT IN ('demo', 'test')";
+    }
+    query += ' ORDER BY seen_at DESC';
+    const rows = this.db.prepare(query).all(companyId) as Record<string, unknown>[];
     return rows.map((r) => ({
       id: r['id'] as number,
       companyId: r['company_id'] as number,
       signalType: r['signal_type'] as any,
       detail: r['detail'] as string,
       url: r['url'] as string | undefined,
+      source: (r['source'] as string) || 'manual',
       seenAt: r['seen_at'] as string,
     }));
   }
 
-  hasSignalsForCompany(companyName: string): boolean {
+  hasSignalsForCompany(companyName: string, options?: { excludeDemo?: boolean }): boolean {
     const company = this.getCompanyByName(companyName);
     if (!company || !company.id) return false;
-    const count = (this.db.prepare('SELECT COUNT(*) as c FROM signals WHERE company_id = ?').get(company.id) as { c: number }).c;
+    let query = 'SELECT COUNT(*) as c FROM signals WHERE company_id = ?';
+    if (options?.excludeDemo) {
+      query += " AND source NOT IN ('demo', 'test')";
+    }
+    const count = (this.db.prepare(query).get(company.id) as { c: number }).c;
     return count > 0;
   }
 
@@ -412,6 +428,103 @@ export class StorageService {
       .run(error, id);
   }
 
+  // ─── Outreach Engine ───────────────────────────────────────
+
+  addOutreach(record: Omit<OutreachRecord, 'id'>): number {
+    const result = this.db
+      .prepare(`
+        INSERT INTO outreach (
+          contact_id, job_id, type, variant, subject, body,
+          status, sent_at, follow_up_due_at, reply_at, outcome, source, error
+        ) VALUES (
+          @contactId, @jobId, @type, @variant, @subject, @body,
+          @status, @sentAt, @followUpDueAt, @replyAt, @outcome, @source, @error
+        )
+      `)
+      .run({
+        contactId: record.contactId,
+        jobId: record.jobId || null,
+        type: record.type || 'cold',
+        variant: record.variant || 'A',
+        subject: record.subject,
+        body: record.body,
+        status: record.status || 'draft',
+        sentAt: record.sentAt || null,
+        followUpDueAt: record.followUpDueAt || null,
+        replyAt: record.replyAt || null,
+        outcome: record.outcome || 'none',
+        source: record.source || 'manual',
+        error: record.error || null,
+      });
+
+    return Number(result.lastInsertRowid);
+  }
+
+  getOutreachById(id: number): OutreachRecord | undefined {
+    const row = this.db.prepare('SELECT * FROM outreach WHERE id = ?').get(id) as Record<string, unknown> | undefined;
+    return row ? this.rowToOutreach(row) : undefined;
+  }
+
+  getAllOutreach(filters?: { status?: string; contactId?: number }): OutreachRecord[] {
+    let query = 'SELECT * FROM outreach WHERE 1=1';
+    const params: unknown[] = [];
+    if (filters?.status) {
+      query += ' AND status = ?';
+      params.push(filters.status);
+    }
+    if (filters?.contactId) {
+      query += ' AND contact_id = ?';
+      params.push(filters.contactId);
+    }
+    query += ' ORDER BY created_at DESC';
+    const rows = this.db.prepare(query).all(...params) as Record<string, unknown>[];
+    return rows.map((r) => this.rowToOutreach(r));
+  }
+
+  updateOutreachStatus(id: number, status: OutreachStatus, details?: { sentAt?: string; error?: string }): void {
+    this.db
+      .prepare(`
+        UPDATE outreach SET
+          status = ?,
+          sent_at = COALESCE(?, sent_at),
+          error = COALESCE(?, error)
+        WHERE id = ?
+      `)
+      .run(status, details?.sentAt || null, details?.error || null, id);
+  }
+
+  updateOutreachContent(id: number, subject: string, body: string): void {
+    this.db.prepare("UPDATE outreach SET subject = ?, body = ?, status = 'draft' WHERE id = ?").run(subject, body, id);
+  }
+
+  getDailySentCount(dateStr?: string): number {
+    const day = dateStr || new Date().toISOString().slice(0, 10);
+    const row = this.db
+      .prepare("SELECT COUNT(*) as c FROM outreach WHERE status = 'sent' AND date(sent_at) = date(?)")
+      .get(day) as { c: number };
+    return row ? row.c : 0;
+  }
+
+  getRecentBounceStats(): { totalSent: number; bounced: number; bounceRate: number } {
+    const sentCount = (this.db.prepare("SELECT COUNT(*) as c FROM outreach WHERE status IN ('sent', 'bounced', 'replied')").get() as { c: number }).c;
+    const bounceCount = (this.db.prepare("SELECT COUNT(*) as c FROM outreach WHERE status = 'bounced'").get() as { c: number }).c;
+    const rate = sentCount > 0 ? bounceCount / sentCount : 0;
+    return { totalSent: sentCount, bounced: bounceCount, bounceRate: rate };
+  }
+
+  purgeDemoData(): { deletedContacts: number; deletedSignals: number; deletedApplications: number; deletedOutreach: number } {
+    const delContacts = this.db.prepare("DELETE FROM contacts WHERE source IN ('demo', 'sample') OR email IN ('priya.sharma@hackerrank.com', 'arjun.m@hackerrank.com', 'rohan.verma@cred.club', 'ananya.sen@groww.in', 'amit.patel@razorpay.com', 'emily.watson@postman.com')").run().changes;
+    const delSignals = this.db.prepare("DELETE FROM signals WHERE source IN ('demo', 'test') OR detail LIKE '%Series C%'").run().changes;
+    const delApps = this.db.prepare("DELETE FROM applications WHERE id = 1 OR notes LIKE '%demo%' OR notes LIKE '%portal%'").run().changes;
+    const delOutreach = this.db.prepare("DELETE FROM outreach WHERE source IN ('demo', 'sample')").run().changes;
+    return {
+      deletedContacts: delContacts,
+      deletedSignals: delSignals,
+      deletedApplications: delApps,
+      deletedOutreach: delOutreach,
+    };
+  }
+
   // ─── Row Mappers ───────────────────────────────────────────
 
   private rowToJob(row: Record<string, unknown>): JobPosting {
@@ -473,6 +586,26 @@ export class StorageService {
       timezone: (row['timezone'] as string) || 'Asia/Kolkata',
       source: row['source'] as string | undefined,
       notes: row['notes'] as string | undefined,
+      createdAt: row['created_at'] as string,
+    };
+  }
+
+  private rowToOutreach(row: Record<string, unknown>): OutreachRecord {
+    return {
+      id: row['id'] as number,
+      contactId: row['contact_id'] as number,
+      jobId: row['job_id'] as number | undefined,
+      type: row['type'] as any,
+      variant: (row['variant'] as any) || 'A',
+      subject: row['subject'] as string,
+      body: row['body'] as string,
+      status: row['status'] as any,
+      sentAt: row['sent_at'] as string | undefined,
+      followUpDueAt: row['follow_up_due_at'] as string | undefined,
+      replyAt: row['reply_at'] as string | undefined,
+      outcome: row['outcome'] as any,
+      source: row['source'] as string | undefined,
+      error: row['error'] as string | undefined,
       createdAt: row['created_at'] as string,
     };
   }

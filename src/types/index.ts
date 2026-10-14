@@ -178,6 +178,7 @@ export function hasFillMarkers(obj: unknown): { hasFill: boolean; markerPaths: s
 export type ContactType =
   | 'recruiter'
   | 'qa_manager'
+  | 'sdet_lead'
   | 'eng_manager'
   | 'founder_cto'
   | 'generic_careers'
@@ -233,6 +234,7 @@ export interface SignalRecord {
   signalType: SignalType;
   detail: string;
   url?: string;
+  source?: string; // 'manual' | 'news' | 'ats' | 'demo' | 'test'
   seenAt?: string;
 }
 
@@ -261,6 +263,8 @@ export interface OutreachRecord {
   followUpDueAt?: string;
   replyAt?: string;
   outcome?: OutreachOutcome;
+  source?: string;
+  error?: string;
   createdAt?: string;
 }
 

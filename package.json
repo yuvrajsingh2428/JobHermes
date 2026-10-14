@@ -24,6 +24,8 @@
     "import-contacts": "ts-node src/index.ts import-contacts",
     "contacts": "ts-node src/index.ts contacts",
     "application": "ts-node src/index.ts application",
+    "outreach": "ts-node src/index.ts outreach",
+    "seed-demo": "ts-node -e \"import { seedDemoSandbox } from './src/utils/demo-sandbox'; seedDemoSandbox();\"",
     "push-staging": "node scripts/push-staging.js"
   },
   "keywords": [

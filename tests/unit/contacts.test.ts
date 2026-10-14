@@ -149,8 +149,8 @@ describe('Phase 2 Contacts, Patterns, Signals, and Send Window Tests', () => {
     });
   });
 
-  describe('CSV Contact Importer', () => {
-    it('imports contacts from fixture with timezones, roles, and company linkage', () => {
+  describe('CSV Contact Importer & Verification Integrity', () => {
+    it('defaults imported email_status to unknown and maps Lead SDET to sdet_lead', () => {
       const service = new ContactService(storage);
       const fixturePath = path.resolve(__dirname, '../fixtures/contacts.csv');
       const result = service.importContactsFromCsv(fixturePath);
@@ -166,12 +166,56 @@ describe('Phase 2 Contacts, Patterns, Signals, and Send Window Tests', () => {
       expect(priya?.title).toBe('QA Engineering Manager');
       expect(priya?.contactType).toBe('qa_manager');
       expect(priya?.timezone).toBe('Asia/Kolkata');
-      expect(priya?.emailStatus).toBe('verified');
+      // Enforced integrity: CSV import MUST default to 'unknown'
+      expect(priya?.emailStatus).toBe('unknown');
+
+      // Rohan Verma is 'Lead SDET' -> must be 'sdet_lead'
+      const rohan = all.find((c) => c.fullName === 'Rohan Verma');
+      expect(rohan).toBeDefined();
+      expect(rohan?.title).toBe('Lead SDET');
+      expect(rohan?.contactType).toBe('sdet_lead');
+      expect(rohan?.emailStatus).toBe('unknown');
 
       const emily = all.find((c) => c.fullName === 'Emily Watson');
       expect(emily).toBeDefined();
       expect(emily?.timezone).toBe('America/New_York');
       expect(emily?.contactType).toBe('recruiter');
+
+      // Test explicit contacts verify command
+      service.verifyContact(priya!.id);
+      const updatedPriya = storage.getContactById(priya!.id);
+      expect(updatedPriya?.emailStatus).toBe('verified');
+    });
+
+    it('allows passing defaultStatus option when explicitly requested', () => {
+      const service = new ContactService(storage);
+      const fixturePath = path.resolve(__dirname, '../fixtures/contacts.csv');
+      service.importContactsFromCsv(fixturePath, { defaultStatus: 'verified' });
+
+      const all = storage.getAllContacts();
+      expect(all.length).toBeGreaterThan(0);
+      expect(all[0].emailStatus).toBe('verified');
+    });
+  });
+
+  describe('Contact Title Classification Heuristics', () => {
+    it('correctly maps QA/SDET leadership titles to sdet_lead or qa_manager', () => {
+      const service = new ContactService(storage);
+
+      expect(service.inferContactType('Lead SDET')).toBe('sdet_lead');
+      expect(service.inferContactType('SDET Lead')).toBe('sdet_lead');
+      expect(service.inferContactType('Principal SDET')).toBe('sdet_lead');
+      expect(service.inferContactType('Staff SDET')).toBe('sdet_lead');
+      expect(service.inferContactType('Lead QA Engineer')).toBe('sdet_lead');
+      expect(service.inferContactType('QA Lead')).toBe('sdet_lead');
+
+      expect(service.inferContactType('QA Engineering Manager')).toBe('qa_manager');
+      expect(service.inferContactType('Director of QA')).toBe('qa_manager');
+      expect(service.inferContactType('Head of QA')).toBe('qa_manager');
+
+      expect(service.inferContactType('Technical Recruiter')).toBe('recruiter');
+      expect(service.inferContactType('Engineering Manager')).toBe('eng_manager');
+      expect(service.inferContactType('CTO & Co-Founder')).toBe('founder_cto');
     });
   });
 

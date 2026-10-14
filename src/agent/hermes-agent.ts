@@ -116,12 +116,14 @@ export class HermesAgent {
         let hasSignal = false;
         let signalType: string | undefined;
         let signalDetail = '';
+        let signalSource: string | undefined;
         if (comp && comp.id) {
           const signals = this.storage.getSignalsForCompany(comp.id);
           if (signals.length > 0) {
             hasSignal = true;
             signalType = signals[0].signalType;
             signalDetail = signals[0].detail;
+            signalSource = signals[0].source;
           }
         }
         companyContexts.set(compName, {
@@ -129,15 +131,30 @@ export class HermesAgent {
           hasCompanySignal: hasSignal,
           signalType,
           signalDetail,
+          signalSource,
         });
       }
 
       logger.info('Scoring jobs with SDET scoring model...');
       const scoredJobs = this.scorer.scoreAll(rawJobs, profile, companyContexts);
 
-      // 3. Filter by threshold
+      // 3. Filter by threshold and identify near misses (40–59)
       const qualified = scoredJobs.filter((j) => (j.score ?? 0) >= this.config.minScoreThreshold);
+      const nearMisses = scoredJobs.filter(
+        (j) => (j.score ?? 0) >= 40 && (j.score ?? 0) < this.config.minScoreThreshold
+      );
+
       logger.info(`After scoring filter (>= ${this.config.minScoreThreshold}): ${qualified.length} matching jobs`);
+      logger.info(`Near misses (40–59): ${nearMisses.length}`);
+
+      if (nearMisses.length > 0) {
+        logger.section('Near Misses (Score 40–59)');
+        nearMisses.forEach((j, i) => {
+          logger.info(`  #${i + 1} [Score: ${j.score}] ${j.title} @ ${j.company} (${j.location})`);
+          logger.info(`     Missing: ${j.scoreBreakdown?.missingSkills.slice(0, 3).join(', ') || 'none'}`);
+          logger.info(`     Key Reasons: ${j.reasons?.slice(0, 2).join(' | ')}`);
+        });
+      }
 
       // 4. Store in SQLite DB
       for (const job of qualified) {
@@ -260,6 +277,25 @@ export class HermesAgent {
 
   isCurrentlyScanning(): boolean {
     return this.isScanning;
+  }
+
+  async scanAllQaTitles(): Promise<Array<{ title: string; company: string; location: string; url: string; source: string; isSdetMatch: boolean }>> {
+    const targets = this.loadTargets().filter((t) => t.enabled && t.verified);
+    const rawJobs = await fetchAllTargets(targets, this.config.scrapeConcurrency);
+
+    const qaRegex = /\b(qa|quality|test|sdet|automation|assurance|testing)\b/i;
+    const qaJobs = rawJobs.filter((j) => qaRegex.test(j.title));
+
+    const sdetRegex = /\b(sdet|software (?:development )?engineer in test|qa automation|test automation|automation test engineer|set)\b/i;
+
+    return qaJobs.map((j) => ({
+      title: j.title,
+      company: j.company,
+      location: j.location,
+      url: j.url,
+      source: j.source,
+      isSdetMatch: sdetRegex.test(j.title),
+    }));
   }
 
   shutdown(): void {
