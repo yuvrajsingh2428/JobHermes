@@ -24,6 +24,8 @@
   "minExperienceYears": 1,
   "maxExperienceYears": 3,
 
+  "profile_reviewed": false,
+  "_skills_note": "ASSUMED, EDIT ME",
   "skills": {
     "languages": ["Java", "Python", "JavaScript", "SQL"],
     "automationTools": ["Selenium", "Playwright", "Cypress", "REST Assured", "Postman", "Appium", "JMeter"],

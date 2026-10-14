@@ -10,6 +10,7 @@ import { logger } from '../utils/logger';
 export interface ScoringContext {
   companyOpenQaCount?: number;
   hasCompanySignal?: boolean;
+  signalType?: string;
   signalDetail?: string;
 }
 
@@ -58,7 +59,9 @@ export class ScoringService {
       reasons.push(`Salary: ${salaryReason}`);
     }
 
-    const total = Math.min(100, titlePoints + skillPoints + expPoints + locPoints + freshPoints + signalPoints + salaryPoints);
+    const total = titlePoints === 0
+      ? 0
+      : Math.min(100, titlePoints + skillPoints + expPoints + locPoints + freshPoints + signalPoints + salaryPoints);
 
     return {
       titleMatch: titlePoints,
@@ -88,14 +91,15 @@ export class ScoringService {
 
     // Strong SDET / Automation titles
     if (
-      /\b(sdet|software engineer in test|qa automation|test automation|automation test engineer|set)\b/i.test(t) ||
+      /\b(sdet|software (?:development )?engineer in test|qa automation|test automation|automation test engineer|set)\b/i.test(t) ||
+      (/\b(qa|test|quality)\b/i.test(t) && /\bautomation\b/i.test(t)) ||
       (/\bqa engineer\b/i.test(t) && /\bautomation\b/i.test(t))
     ) {
       return { points: 25, reason: `Exact SDET/Automation title match "${title}" (25/25)` };
     }
 
     // QA / Test Engineer with automation mentioned in description
-    if (/\b(qa|quality engineer|test engineer|quality assurance engineer)\b/i.test(t)) {
+    if (/\b(qa|quality engineer|test engineer|quality assurance engineer|software test engineer)\b/i.test(t)) {
       const hasAutomationInDesc = /\b(selenium|playwright|cypress|rest assured|automation|framework)\b/i.test(description);
       if (hasAutomationInDesc) {
         return { points: 18, reason: `QA title with automation stack in description (18/25)` };
@@ -103,8 +107,8 @@ export class ScoringService {
       return { points: 8, reason: `General QA title without prominent automation emphasis (8/25)` };
     }
 
-    // Unrelated tech title
-    return { points: 0, reason: `Unrelated job title "${title}" (0/25)` };
+    // Unrelated non-QA title
+    return { points: 0, reason: `Unrelated non-QA title "${title}" (0/25)` };
   }
 
   // ─── 2. Skill Match (30) ───────────────────────────────────
@@ -252,7 +256,13 @@ export class ScoringService {
 
   private scoreHiringSignal(context?: ScoringContext): { points: number; reason: string } {
     if (context?.hasCompanySignal) {
-      return { points: 10, reason: `Recorded company hiring signal (${context.signalDetail || 'funding/growth'}) (10/10)` };
+      if (context.signalType === 'layoffs') {
+        return { points: 0, reason: `Company signal indicates recent layoffs (${context.signalDetail}) (0/10)` };
+      }
+      return {
+        points: 10,
+        reason: `Recorded company signal [${context.signalType || 'growth'}]: "${context.signalDetail || 'funding/growth'}" (10/10)`,
+      };
     }
 
     if (context?.companyOpenQaCount && context.companyOpenQaCount >= 2) {

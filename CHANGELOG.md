@@ -2,6 +2,36 @@
 
 All notable changes to the JobHermes SDET Job-Search Copilot will be documented in this file.
 
+## [Phase 2: Database Migrations, Contacts, Signals & Application Tracking] - 2026-10-14
+
+### Added
+- **Database Migrations Engine (`src/storage/migrations.ts` & `src/storage/migrations/`)**:
+  - `001_core.sql`: versioned DDL for `jobs`, `applications`, and `scan_runs`.
+  - `002_contacts_signals.sql`: versioned DDL for `companies`, `contacts`, `signals`, `suppression_list`, and `api_usage`.
+  - Idempotent migration runner executed on startup with WAL journal mode.
+- **Application Tracking**:
+  - Preserved direct application tracking in `applications` table and added `application add <jobId> [notes]` and `application list` CLI commands.
+- **Target Ingestion CLI (`src/sources/add-company.ts`)**:
+  - `add-company <careers-url>` CLI command with automatic ATS detection (Greenhouse, Lever, Ashby, Workable), slug extraction, live API validation, and Playwright fallback configuration instructions.
+- **Doctor CLI Diagnostic (`src/utils/doctor.ts`)**:
+  - Added `doctor` command that validates environment, API keys, targets, `[FILL]` markers, and warns until `"profile_reviewed": true` is set in `config/candidate-profile.json`.
+- **Email Pattern Inferrer (`src/contacts/pattern-inferrer.ts`)**:
+  - Corporate email pattern inferrer supporting `first.last`, `flast`, `firstlast`, `first_last`, `first`, and `lastf` with confidence heuristic, marked `guessed`.
+- **Contact Service & CSV Importer (`src/contacts/contact-service.ts`)**:
+  - Persona targeting heuristics tailored to company size: Startups (<50) $\rightarrow$ Founder/CTO; Mid-size (50-500) $\rightarrow$ QA Manager / Eng Manager; Enterprises (>500) $\rightarrow$ Technical Recruiter.
+  - `import-contacts <csv>` CLI command parsing company, name, role, email, timezone, and LinkedIn URL.
+  - `contacts list [company]` and `contacts todo` CLI commands.
+  - Per-contact recipient timezone support (defaulting to `Asia/Kolkata`) with send-window guard helper (`isWithinSendWindow`).
+- **Hunter.io Enrichment Adapter (`src/contacts/hunter-adapter.ts`)**:
+  - Optional domain search, email finder, and verification with monthly quota cap (default 25) tracked in `api_usage` SQLite table.
+- **Company Signals CLI & Scorer Bonus**:
+  - `signal add <company> <type> <detail> [url]` and `signal list [company]` CLI commands.
+  - Wired company signals and multiple open QA role density into `HermesAgent` daily scan scoring loop (+10 pt hiring signal bonus, layoff penalty handling).
+- **Playwright Fallback Contract Test**:
+  - Added fixture-based contract test using `tests/fixtures/sources/custom-careers.html` to verify custom scraping without network dependency.
+- **Unit Tests (`tests/unit/contacts.test.ts`, `tests/unit/add-company.test.ts`)**:
+  - 18 new unit tests covering pattern inferrer, targeting rules, timezone send-window guard, CSV import, Hunter quota capping, and signal scorer bonus (48 tests passing total).
+
 ## [Phase 1: ATS Sources, HTTP Client & 100-Point SDET Scorer] - 2026-10-13
 
 ### Added

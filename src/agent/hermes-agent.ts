@@ -5,7 +5,7 @@
 import { v4 as uuidv4 } from 'uuid';
 import { AgentTask, CandidateProfile, CompanyTarget, JobPosting, HermesConfig } from '../types';
 import { fetchAllTargets } from '../sources';
-import { scoringService, ScoringService } from '../scoring/scorer';
+import { scoringService, ScoringService, ScoringContext } from '../scoring/scorer';
 import { AIService } from '../ai/openai-service';
 import { StorageService } from '../storage/database';
 import { DocumentService } from '../ai/document-service';
@@ -93,16 +93,47 @@ export class HermesAgent {
     try {
       const profile = this.loadProfile();
       const targets = this.loadTargets();
-      const enabledTargets = targets.filter((t) => t.enabled);
+      const enabledTargets = targets.filter((t) => t.enabled && t.verified);
 
       // 1. Fetch from structured ATS adapters
       logger.info(`Fetching jobs across ${enabledTargets.length} company sources...`);
       const rawJobs = await fetchAllTargets(enabledTargets, this.config.scrapeConcurrency);
       logger.info(`Total unique raw jobs collected: ${rawJobs.length}`);
 
-      // 2. Score with 100-point SDET scoring engine
+      // 2. Build company contexts with signal and QA opening awareness
+      const companyQaCounts = new Map<string, number>();
+      for (const j of rawJobs) {
+        if (/qa|sdet|test|quality/i.test(j.title)) {
+          const compKey = j.company.toLowerCase().trim();
+          companyQaCounts.set(compKey, (companyQaCounts.get(compKey) || 0) + 1);
+        }
+      }
+
+      const companyContexts = new Map<string, ScoringContext>();
+      const distinctCompanies = new Set(rawJobs.map((j) => j.company.toLowerCase().trim()));
+      for (const compName of distinctCompanies) {
+        const comp = this.storage.getCompanyByName(compName);
+        let hasSignal = false;
+        let signalType: string | undefined;
+        let signalDetail = '';
+        if (comp && comp.id) {
+          const signals = this.storage.getSignalsForCompany(comp.id);
+          if (signals.length > 0) {
+            hasSignal = true;
+            signalType = signals[0].signalType;
+            signalDetail = signals[0].detail;
+          }
+        }
+        companyContexts.set(compName, {
+          companyOpenQaCount: companyQaCounts.get(compName) || 0,
+          hasCompanySignal: hasSignal,
+          signalType,
+          signalDetail,
+        });
+      }
+
       logger.info('Scoring jobs with SDET scoring model...');
-      const scoredJobs = this.scorer.scoreAll(rawJobs, profile);
+      const scoredJobs = this.scorer.scoreAll(rawJobs, profile, companyContexts);
 
       // 3. Filter by threshold
       const qualified = scoredJobs.filter((j) => (j.score ?? 0) >= this.config.minScoreThreshold);

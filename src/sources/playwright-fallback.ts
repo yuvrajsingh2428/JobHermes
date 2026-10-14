@@ -12,7 +12,7 @@ export class PlaywrightFallbackSource implements JobSource {
 
   async fetchJobs(target: CompanyTarget): Promise<RawJob[]> {
     const customUrl = target.customUrl || target.slug;
-    if (!customUrl || !customUrl.startsWith('http')) {
+    if (!customUrl || (!customUrl.startsWith('http') && !customUrl.startsWith('file://'))) {
       logger.debug(`No valid custom URL for Playwright fallback on ${target.name}`);
       return [];
     }
@@ -34,8 +34,10 @@ export class PlaywrightFallbackSource implements JobSource {
 
       await page.goto(customUrl, { waitUntil: 'domcontentloaded', timeout: 30000 });
 
-      // Wait a short moment for dynamic JS hydration
-      await page.waitForTimeout(2500);
+      // Wait a short moment for dynamic JS hydration (skip wait for local file:// fixtures)
+      if (!customUrl.startsWith('file://')) {
+        await page.waitForTimeout(2500);
+      }
 
       const jobCards = await page.$$(listSelector);
       logger.info(`Found ${jobCards.length} potential cards for ${target.name}`);

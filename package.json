@@ -18,6 +18,12 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "verify-targets": "ts-node src/index.ts verify-targets",
+    "add-company": "ts-node src/index.ts add-company",
+    "doctor": "ts-node src/index.ts doctor",
+    "signal": "ts-node src/index.ts signal",
+    "import-contacts": "ts-node src/index.ts import-contacts",
+    "contacts": "ts-node src/index.ts contacts",
+    "application": "ts-node src/index.ts application",
     "push-staging": "node scripts/push-staging.js"
   },
   "keywords": [

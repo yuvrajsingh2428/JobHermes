@@ -2,7 +2,13 @@ node_modules/
 dist/
 *.js.map
 .env
+.env.local
+.env.*.local
+!.env.example
 data/
+data/*.db
+data/cache/
+.cache/
 logs/
 output/
 *.db

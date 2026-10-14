@@ -116,6 +116,8 @@ export const CandidateProfileSchema = z.object({
   experienceYears: z.number().default(2),
   minExperienceYears: z.number().default(1),
   maxExperienceYears: z.number().default(3),
+  profile_reviewed: z.boolean().default(false),
+  _skills_note: z.string().optional(),
   skills: z.object({
     languages: z.array(z.string()).default([]),
     automationTools: z.array(z.string()).default([]),
@@ -221,6 +223,8 @@ export type SignalType =
   | 'hiring_post'
   | 'multiple_qa_roles'
   | 'product_launch'
+  | 'headcount_growth'
+  | 'layoffs'
   | 'other';
 
 export interface SignalRecord {

@@ -13,6 +13,7 @@ import { workableSource } from '../../src/sources/workable';
 import { remotiveSource } from '../../src/sources/remotive';
 import { remoteOKSource } from '../../src/sources/remoteok';
 import { adzunaSource } from '../../src/sources/adzuna';
+import { playwrightFallbackSource } from '../../src/sources/playwright-fallback';
 import { RawJobSchema } from '../../src/types';
 
 function loadFixture<T>(filename: string): T {
@@ -246,5 +247,38 @@ describe('ATS Source Contract Tests (Fixture-based, no live network)', () => {
 
     delete process.env.ADZUNA_APP_ID;
     delete process.env.ADZUNA_APP_KEY;
+  });
+
+  it('Playwright fallback adapter parses jobs from saved HTML fixture', async () => {
+    const fixturePath = path.resolve(__dirname, '../fixtures/sources/custom-careers.html');
+    const fileUrl = `file://${fixturePath.replace(/\\/g, '/')}`;
+
+    const target = {
+      name: 'CustomTech',
+      domain: 'customtech.com',
+      ats: 'custom' as const,
+      slug: 'customtech',
+      customUrl: fileUrl,
+      listSelector: '.job-card',
+      titleSelector: '.title',
+      linkSelector: '.apply-link',
+      sizeBucket: 'mid' as const,
+      locations: ['India'],
+      enabled: true,
+      verified: true,
+    };
+
+    const jobs = await playwrightFallbackSource.fetchJobs(target);
+    expect(jobs.length).toBe(3);
+
+    for (const job of jobs) {
+      expect(RawJobSchema.safeParse(job).success).toBe(true);
+      expect(job.company).toBe('CustomTech');
+      expect(job.source).toBe('playwright_custom');
+    }
+
+    const sdetJob = jobs.find((j) => j.title.includes('Lead SDET'));
+    expect(sdetJob).toBeDefined();
+    expect(sdetJob?.url).toBe('https://customtech.com/careers/lead-sdet');
   });
 });

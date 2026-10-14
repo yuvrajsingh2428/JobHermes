@@ -12,16 +12,20 @@
 
 ---
 
-## Phase 2: Contacts & Company Research Layer (Next)
-- [ ] Versioned SQLite migration engine with `schema_migrations` table
-- [ ] New tables: `companies`, `contacts`, `signals`, `suppression_list`
-- [ ] Preserve existing `applications` table for direct manual tracking
-- [ ] Manual contact import: CLI command `import-contacts <csv>` + CSV parser
-- [ ] CLI command `signal add <company> <type> <detail>`
-- [ ] Contact targeting rules (large vs startup)
-- [ ] Email pattern inferrer ({first}.{last}, etc.) with `guessed` status
-- [ ] Optional Hunter.io adapter with monthly free-tier quota cap in SQLite
-- [ ] Per-company research brief storage
+## Phase 2: Contacts & Company Research Layer
+- [x] Versioned SQLite migration engine with `schema_migrations` table
+- [x] New tables: `companies`, `contacts`, `signals`, `suppression_list`, `api_usage`
+- [x] Preserve existing `applications` table for direct manual tracking (`application add`, `application list`)
+- [x] Manual contact import: CLI command `import-contacts <csv>` + CSV parser
+- [x] CLI command `signal add <company> <type> <detail> [url]` and scorer bonus integration
+- [x] Contact targeting rules by company size (startup vs mid vs large)
+- [x] Email pattern inferrer ({first}.{last}, etc.) with `guessed` status
+- [x] Optional Hunter.io adapter with monthly quota cap (default 25) in SQLite
+- [x] Per-company research brief storage
+- [x] Optional per-contact recipient timezone support (default `Asia/Kolkata`) and send-window guard helper (`isWithinSendWindow`)
+- [x] `add-company <careers-url>` CLI with ATS & slug detection, live API verification, and Playwright fallback configuration
+- [x] `doctor` CLI diagnostic with candidate profile review warning
+- [x] Playwright fallback contract test using saved HTML fixture
 
 ---
 

@@ -10,22 +10,243 @@ import { Scheduler } from './scheduler/scheduler';
 import { logger } from './utils/logger';
 import { DashboardServer } from './dashboard/server';
 import { runVerifyTargets } from './sources/verify-targets';
-import { hasFillMarkers } from './types';
+import { addCompanyFromUrl } from './sources/add-company';
+import { runDoctor } from './utils/doctor';
+import { hasFillMarkers, SignalType } from './types';
+import { StorageService } from './storage/database';
+import { ContactService } from './contacts/contact-service';
 
 const args = process.argv.slice(2);
 
 async function main(): Promise<void> {
   const flag = args[0];
+  const dbPath = process.env.DATABASE_PATH || './data/jobhermes.db';
 
   if (flag === 'verify-targets' || flag === '--verify-targets') {
     await runVerifyTargets();
     return;
   }
 
+  if (flag === 'add-company' || flag === '--add-company') {
+    const url = args[1];
+    if (!url) {
+      logger.error('Usage: npm run add-company <careers-url>');
+      process.exit(1);
+    }
+    await addCompanyFromUrl(url);
+    return;
+  }
+
+  if (flag === 'doctor' || flag === '--doctor') {
+    runDoctor();
+    return;
+  }
+
+  // ─── Signals CLI ───────────────────────────────────────────
+  if (flag === 'signal' || flag === '--signal') {
+    const sub = args[1];
+    const storage = new StorageService(dbPath);
+
+    if (sub === 'add') {
+      const companyName = args[2];
+      const signalType = (args[3] as SignalType) || 'other';
+      const detail = args[4];
+      const url = args[5];
+
+      if (!companyName || !detail) {
+        logger.error('Usage: npm run signal add <company> <type> <detail> [url]');
+        logger.info('Types: funding | hiring_post | multiple_qa_roles | product_launch | headcount_growth | layoffs | other');
+        process.exit(1);
+      }
+
+      let company = storage.getCompanyByName(companyName);
+      if (!company) {
+        const compId = storage.upsertCompany({
+          name: companyName,
+          domain: `${companyName.toLowerCase().replace(/\s+/g, '')}.com`,
+          sizeBucket: 'mid',
+          ats: 'custom',
+          notes: 'Auto-created via signal add',
+        });
+        company = storage.getCompanyById(compId);
+      }
+
+      if (!company || !company.id) {
+        logger.error(`Could not resolve company: ${companyName}`);
+        process.exit(1);
+      }
+
+      storage.addSignal({
+        companyId: company.id,
+        signalType,
+        detail,
+        url,
+      });
+
+      logger.success(`Signal added for ${company.name}: [${signalType}] "${detail}"`);
+      return;
+    }
+
+    if (sub === 'list' || !sub) {
+      const companyFilter = args[2];
+      if (companyFilter) {
+        const company = storage.getCompanyByName(companyFilter);
+        if (!company || !company.id) {
+          logger.warn(`Company not found: ${companyFilter}`);
+          return;
+        }
+        const signals = storage.getSignalsForCompany(company.id);
+        logger.section(`Signals for ${company.name}`);
+        if (signals.length === 0) {
+          logger.info('No signals recorded.');
+        } else {
+          signals.forEach((s) => logger.info(`  • [${s.signalType}] ${s.detail} (${s.seenAt})${s.url ? ` - ${s.url}` : ''}`));
+        }
+        return;
+      }
+
+      const companies = storage.getAllCompanies();
+      logger.section('All Recorded Company Signals');
+      let count = 0;
+      for (const comp of companies) {
+        if (!comp.id) continue;
+        const sigs = storage.getSignalsForCompany(comp.id);
+        if (sigs.length > 0) {
+          count += sigs.length;
+          logger.info(`🏢 ${comp.name}:`);
+          sigs.forEach((s) => logger.info(`   • [${s.signalType}] ${s.detail} (${s.seenAt})`));
+        }
+      }
+      if (count === 0) logger.info('No company signals found in database.');
+      return;
+    }
+
+    logger.error('Unknown signal subcommand. Use: signal add <company> <type> <detail> [url] OR signal list [company]');
+    process.exit(1);
+  }
+
+  // ─── Contact Management CLI ────────────────────────────────
+  if (flag === 'import-contacts' || flag === '--import-contacts') {
+    const csvPath = args[1];
+    if (!csvPath) {
+      logger.error('Usage: npm run import-contacts <path-to-contacts.csv>');
+      process.exit(1);
+    }
+    const storage = new StorageService(dbPath);
+    const contactService = new ContactService(storage);
+    try {
+      const result = contactService.importContactsFromCsv(csvPath);
+      logger.section('Contact Import Summary');
+      logger.info(`Successfully imported: ${result.imported}`);
+      logger.info(`Failed rows:           ${result.failed}`);
+      if (result.errors.length > 0) {
+        logger.warn('Errors encountered:');
+        result.errors.forEach((e) => logger.warn(`  - ${e}`));
+      }
+    } catch (err: any) {
+      logger.error(`CSV import failed: ${err.message}`);
+      process.exit(1);
+    }
+    return;
+  }
+
+  if (flag === 'contacts' || flag === '--contacts') {
+    const sub = args[1];
+    const storage = new StorageService(dbPath);
+    const contactService = new ContactService(storage);
+
+    if (sub === 'todo') {
+      const todo = contactService.getTodoCompanies();
+      logger.section('Companies Needing Contacts (Todo)');
+      if (todo.length === 0) {
+        logger.info('All recorded companies currently have contacts.');
+      } else {
+        todo.slice(0, 15).forEach(({ company, rule }, i) => {
+          logger.info(`\n#${i + 1} 🏢 ${company.name} [Size: ${company.sizeBucket}]`);
+          logger.info(`   Target Personas: ${rule.targetTitles.join(', ')}`);
+          logger.info(`   Priority Types:  ${rule.priorityTypes.join(', ')}`);
+          logger.info(`   Why:             ${rule.rationale}`);
+        });
+      }
+      return;
+    }
+
+    const companyFilter = sub === 'list' ? args[2] : sub;
+    const contacts = contactService.getContacts(companyFilter);
+    logger.section(companyFilter ? `Contacts for ${companyFilter}` : 'Saved Contacts');
+    if (contacts.length === 0) {
+      logger.info('No contacts found.');
+    } else {
+      contacts.forEach((c) => {
+        logger.info(
+          `  • ${c.fullName} | ${c.title} | ${c.contactType} | ${c.email || 'no email'} [${c.emailStatus}] | TZ: ${c.timezone || 'Asia/Kolkata'}${c.linkedinUrl ? ` | ${c.linkedinUrl}` : ''}`
+        );
+      });
+    }
+    return;
+  }
+
+  // ─── Application Tracking CLI ──────────────────────────────
+  if (flag === 'application' || flag === '--application' || flag === 'applications') {
+    const sub = args[1];
+    const storage = new StorageService(dbPath);
+
+    if (sub === 'add') {
+      const jobId = parseInt(args[2], 10);
+      const notes = args.slice(3).join(' ') || 'Direct manual application';
+      if (!jobId) {
+        logger.error('Usage: npm run application add <jobId> [notes]');
+        process.exit(1);
+      }
+      const job = storage.getJobById(jobId);
+      if (!job) {
+        logger.error(`Job ID ${jobId} not found in database.`);
+        process.exit(1);
+      }
+      const now = new Date().toISOString();
+      storage.markApplied(jobId, now);
+      const appId = storage.addApplication({
+        jobId,
+        appliedAt: now,
+        notes,
+        outcome: 'applied',
+      });
+      logger.success(`Recorded direct application #${appId} for "${job.title}" at ${job.company}`);
+      return;
+    }
+
+    if (sub === 'list' || !sub) {
+      const apps = storage.getApplications();
+      logger.section('Direct Applications Log');
+      if (apps.length === 0) {
+        logger.info('No applications recorded yet.');
+      } else {
+        apps.forEach((a) => {
+          const job = storage.getJobById(a.jobId);
+          logger.info(`  #${a.id} | Job #${a.jobId}: ${job?.title || 'Unknown'} @ ${job?.company || 'Unknown'}`);
+          logger.info(`     Applied: ${a.appliedAt} | Outcome: ${a.outcome || 'pending'} | Notes: ${a.notes || 'None'}`);
+        });
+      }
+      return;
+    }
+
+    logger.error('Unknown application command. Use: application add <jobId> [notes] OR application list');
+    process.exit(1);
+  }
+
   if (flag === '--help' || flag === '-h') {
     logger.section('JobHermes SDET Copilot CLI Usage');
     logger.info('Options:');
     logger.info('  verify-targets                        Hit all ATS APIs in company-targets.json & report status');
+    logger.info('  add-company <careers-url>             Detect ATS, slug, verify API, and save target');
+    logger.info('  doctor                                Diagnostic check on candidate profile and system state');
+    logger.info('  signal add <company> <type> <detail>  Record company growth/hiring signal for score bonus');
+    logger.info('  signal list [company]                 Display company signals');
+    logger.info('  import-contacts <csv-path>            Import contacts with roles, emails, and timezones');
+    logger.info('  contacts list [company]               List saved contacts and outreach readiness');
+    logger.info('  contacts todo                         List companies needing contact discovery with persona rules');
+    logger.info('  application add <job-id> [notes]      Record direct manual application');
+    logger.info('  application list                      View direct application history');
     logger.info('  --scan                                Run an immediate job scan across active ATS sources');
     logger.info('  --resume <job-id>                     Generate a tailored resume for a job');
     logger.info('  --cover-letter <job-id> [tone]        Generate a tailored cover letter (professional | enthusiastic | concise)');

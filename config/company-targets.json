@@ -1,15 +1,15 @@
 [
   {
     "name": "Postman",
-    "domain": "postman.com",
+    "domain": "boards.greenhouse.io",
     "ats": "greenhouse",
     "slug": "postman",
-    "sizeBucket": "large",
+    "sizeBucket": "mid",
     "locations": [
-      "Bangalore",
+      "India",
       "Remote India"
     ],
-    "notes": "API platform with large QA and SDET team",
+    "notes": "Added via add-company from https://boards.greenhouse.io/postman",
     "enabled": true,
     "verified": false
   },
@@ -565,5 +565,23 @@
     "notes": "Aggregated public feed of remote QA jobs",
     "enabled": true,
     "verified": true
+  },
+  {
+    "name": "Example",
+    "domain": "example.com",
+    "ats": "custom",
+    "slug": "https://example.com/careers",
+    "sizeBucket": "mid",
+    "locations": [
+      "India",
+      "Remote India"
+    ],
+    "enabled": true,
+    "verified": false,
+    "notes": "Added via add-company from https://example.com/careers",
+    "customUrl": "https://example.com/careers",
+    "listSelector": "[data-job-id], .job-card, .job-listing, li[class*=\"job\"]",
+    "titleSelector": "h2, h3, .title, a",
+    "linkSelector": "a"
   }
 ]
