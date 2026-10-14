@@ -1,0 +1,15 @@
+{
+  "name": "LeadSquared",
+  "jobs": [
+    {
+      "title": "SDET - Test Automation Engineer",
+      "shortcode": "LS-QA-01",
+      "city": "Bangalore",
+      "country": "India",
+      "telecommuting": false,
+      "published_on": "2026-10-10",
+      "description": "Looking for test automation engineer proficient in REST Assured, Java, Postman, and CI/CD pipelines.",
+      "url": "https://apply.workable.com/leadsquared/j/LS-QA-01/"
+    }
+  ]
+}

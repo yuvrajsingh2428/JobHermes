@@ -1,0 +1,15 @@
+{
+  "apiVersion": "1.0",
+  "jobs": [
+    {
+      "id": "ashby-job-1",
+      "title": "Software Engineer in Test (SDET)",
+      "department": "Engineering",
+      "location": "Delhi NCR, India",
+      "isRemote": true,
+      "publishedAt": "2026-10-11T10:00:00Z",
+      "jobUrl": "https://jobs.ashbyhq.com/wingify/ashby-job-1",
+      "descriptionPlain": "Wingify is hiring an SDET. Looking for 2-4 years of experience with Selenium WebDriver, TestNG, and Jenkins."
+    }
+  ]
+}

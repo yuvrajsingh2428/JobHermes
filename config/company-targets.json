@@ -1,59 +1,587 @@
 [
   {
-    "name": "Google",
-    "careers_url": "https://careers.google.com/jobs/results/?q=software+engineer&location=India",
-    "search_keywords": ["software engineer", "backend engineer", "full stack"],
-    "priority": "high",
-    "enabled": true
-  },
-  {
-    "name": "Microsoft",
-    "careers_url": "https://jobs.microsoft.com/en/search?q=software+engineer&l=India",
-    "search_keywords": ["software engineer", "SDE", "platform engineer"],
-    "priority": "high",
-    "enabled": true
-  },
-  {
-    "name": "Amazon",
-    "careers_url": "https://www.amazon.jobs/en/search?base_query=software+engineer&loc_query=India",
-    "search_keywords": ["software development engineer", "SDE", "backend"],
-    "priority": "high",
-    "enabled": true
-  },
-  {
-    "name": "Flipkart",
-    "careers_url": "https://www.flipkartcareers.com/#!/joblist",
-    "search_keywords": ["software engineer", "backend", "full stack"],
-    "priority": "medium",
-    "enabled": true
-  },
-  {
-    "name": "Swiggy",
-    "careers_url": "https://careers.swiggy.com/#/careers",
-    "search_keywords": ["software engineer", "backend", "platform"],
-    "priority": "medium",
-    "enabled": true
-  },
-  {
-    "name": "Razorpay",
-    "careers_url": "https://razorpay.com/jobs/",
-    "search_keywords": ["software engineer", "backend engineer"],
-    "priority": "medium",
-    "enabled": true
-  },
-  {
-    "name": "Zepto",
-    "careers_url": "https://jobs.zeptonow.com/",
-    "search_keywords": ["software engineer", "backend"],
-    "priority": "low",
-    "enabled": true
-  },
-  {
-    "name": "LinkedIn",
-    "careers_url": "https://www.linkedin.com/jobs/search/?keywords=software+engineer&location=India&f_TPR=r86400",
-    "search_keywords": ["software engineer", "full stack developer", "backend engineer"],
-    "priority": "high",
+    "name": "Postman",
+    "domain": "boards.greenhouse.io",
+    "ats": "greenhouse",
+    "slug": "postman",
+    "sizeBucket": "mid",
+    "locations": [
+      "India",
+      "Remote India"
+    ],
+    "notes": "Added via add-company from https://boards.greenhouse.io/postman",
     "enabled": true,
-    "is_aggregator": true
+    "verified": false
+  },
+  {
+    "name": "BrowserStack",
+    "domain": "browserstack.com",
+    "ats": "greenhouse",
+    "slug": "browserstack",
+    "sizeBucket": "large",
+    "locations": [
+      "Mumbai",
+      "Bangalore",
+      "Delhi NCR",
+      "Remote India"
+    ],
+    "notes": "Test automation cloud platform with heavy SDET focus",
+    "enabled": true,
+    "verified": false
+  },
+  {
+    "name": "CRED",
+    "domain": "cred.club",
+    "ats": "lever",
+    "slug": "cred",
+    "sizeBucket": "mid",
+    "locations": [
+      "Bangalore"
+    ],
+    "notes": "Fintech with high bar for automation quality",
+    "enabled": true,
+    "verified": true
+  },
+  {
+    "name": "Groww",
+    "domain": "groww.in",
+    "ats": "greenhouse",
+    "slug": "groww",
+    "sizeBucket": "large",
+    "locations": [
+      "Bangalore"
+    ],
+    "notes": "Investment platform with strong QA teams",
+    "enabled": true,
+    "verified": true
+  },
+  {
+    "name": "Meesho",
+    "domain": "meesho.com",
+    "ats": "greenhouse",
+    "slug": "meesho",
+    "sizeBucket": "large",
+    "locations": [
+      "Bangalore",
+      "Remote India"
+    ],
+    "notes": "E-commerce platform with microservices testing",
+    "enabled": true,
+    "verified": false
+  },
+  {
+    "name": "Urban Company",
+    "domain": "urbancompany.com",
+    "ats": "greenhouse",
+    "slug": "urbancompany",
+    "sizeBucket": "mid",
+    "locations": [
+      "Gurgaon",
+      "Delhi NCR"
+    ],
+    "notes": "Home services platform headquartered in Gurgaon",
+    "enabled": true,
+    "verified": false
+  },
+  {
+    "name": "InMobi",
+    "domain": "inmobi.com",
+    "ats": "greenhouse",
+    "slug": "inmobi",
+    "sizeBucket": "large",
+    "locations": [
+      "Bangalore"
+    ],
+    "notes": "Adtech leader with continuous integration and scale testing",
+    "enabled": true,
+    "verified": true
+  },
+  {
+    "name": "Cars24",
+    "domain": "cars24.com",
+    "ats": "lever",
+    "slug": "cars24",
+    "sizeBucket": "mid",
+    "locations": [
+      "Gurgaon",
+      "Delhi NCR"
+    ],
+    "notes": "Used car e-commerce tech hub in Gurgaon",
+    "enabled": true,
+    "verified": false
+  },
+  {
+    "name": "CleverTap",
+    "domain": "clevertap.com",
+    "ats": "greenhouse",
+    "slug": "clevertap",
+    "sizeBucket": "mid",
+    "locations": [
+      "Mumbai",
+      "Bangalore",
+      "Remote India"
+    ],
+    "notes": "Customer engagement SaaS with backend and API test focus",
+    "enabled": true,
+    "verified": false
+  },
+  {
+    "name": "Licious",
+    "domain": "licious.in",
+    "ats": "lever",
+    "slug": "licious",
+    "sizeBucket": "mid",
+    "locations": [
+      "Bangalore"
+    ],
+    "notes": "D2C consumer brand with tech team in Bangalore",
+    "enabled": true,
+    "verified": false
+  },
+  {
+    "name": "Slice",
+    "domain": "sliceit.com",
+    "ats": "greenhouse",
+    "slug": "slice",
+    "sizeBucket": "mid",
+    "locations": [
+      "Bangalore"
+    ],
+    "notes": "Fintech credit card and payments startup",
+    "enabled": true,
+    "verified": true
+  },
+  {
+    "name": "MPL (Mobile Premier League)",
+    "domain": "mpl.live",
+    "ats": "greenhouse",
+    "slug": "mpl",
+    "sizeBucket": "mid",
+    "locations": [
+      "Bangalore"
+    ],
+    "notes": "Gaming platform with client and server automation testing",
+    "enabled": true,
+    "verified": false
+  },
+  {
+    "name": "BharatPe",
+    "domain": "bharatpe.com",
+    "ats": "lever",
+    "slug": "bharatpe",
+    "sizeBucket": "mid",
+    "locations": [
+      "Delhi NCR",
+      "Gurgaon"
+    ],
+    "notes": "Fintech merchant payment platform based in Delhi NCR",
+    "enabled": true,
+    "verified": false
+  },
+  {
+    "name": "Zeta",
+    "domain": "zeta.tech",
+    "ats": "greenhouse",
+    "slug": "zeta",
+    "sizeBucket": "large",
+    "locations": [
+      "Bangalore"
+    ],
+    "notes": "Banking tech SaaS with deep API automation requirements",
+    "enabled": true,
+    "verified": false
+  },
+  {
+    "name": "Gojek",
+    "domain": "gojek.io",
+    "ats": "greenhouse",
+    "slug": "gojek",
+    "sizeBucket": "large",
+    "locations": [
+      "Bangalore",
+      "Gurgaon"
+    ],
+    "notes": "Southeast Asian superapp with large engineering presence in India",
+    "enabled": true,
+    "verified": false
+  },
+  {
+    "name": "ShareChat",
+    "domain": "sharechat.com",
+    "ats": "greenhouse",
+    "slug": "sharechat",
+    "sizeBucket": "mid",
+    "locations": [
+      "Bangalore"
+    ],
+    "notes": "Social network with mobile and backend test automation",
+    "enabled": true,
+    "verified": false
+  },
+  {
+    "name": "Khatabook",
+    "domain": "khatabook.com",
+    "ats": "lever",
+    "slug": "khatabook",
+    "sizeBucket": "mid",
+    "locations": [
+      "Bangalore"
+    ],
+    "notes": "SME accounting platform with mobile automation",
+    "enabled": true,
+    "verified": false
+  },
+  {
+    "name": "Sprinklr",
+    "domain": "sprinklr.com",
+    "ats": "greenhouse",
+    "slug": "sprinklr",
+    "sizeBucket": "large",
+    "locations": [
+      "Gurgaon",
+      "Bangalore"
+    ],
+    "notes": "Enterprise customer experience software with R&D in Gurgaon",
+    "enabled": true,
+    "verified": false
+  },
+  {
+    "name": "MoEngage",
+    "domain": "moengage.com",
+    "ats": "greenhouse",
+    "slug": "moengage",
+    "sizeBucket": "mid",
+    "locations": [
+      "Bangalore"
+    ],
+    "notes": "Customer engagement SaaS with distributed test systems",
+    "enabled": true,
+    "verified": false
+  },
+  {
+    "name": "HackerRank",
+    "domain": "hackerrank.com",
+    "ats": "greenhouse",
+    "slug": "hackerrank",
+    "sizeBucket": "mid",
+    "locations": [
+      "Bangalore",
+      "Remote India"
+    ],
+    "notes": "Developer assessment platform with test automation teams",
+    "enabled": true,
+    "verified": true
+  },
+  {
+    "name": "HackerEarth",
+    "domain": "hackerearth.com",
+    "ats": "lever",
+    "slug": "hackerearth",
+    "sizeBucket": "startup",
+    "locations": [
+      "Bangalore",
+      "Remote India"
+    ],
+    "notes": "Developer platform with test infrastructure",
+    "enabled": true,
+    "verified": false
+  },
+  {
+    "name": "Shiprocket",
+    "domain": "shiprocket.in",
+    "ats": "lever",
+    "slug": "shiprocket",
+    "sizeBucket": "mid",
+    "locations": [
+      "Gurgaon",
+      "Delhi NCR"
+    ],
+    "notes": "E-commerce logistics enabler in Gurgaon",
+    "enabled": true,
+    "verified": false
+  },
+  {
+    "name": "Pine Labs",
+    "domain": "pinelabs.com",
+    "ats": "greenhouse",
+    "slug": "pinelabs",
+    "sizeBucket": "large",
+    "locations": [
+      "Noida",
+      "Delhi NCR",
+      "Bangalore"
+    ],
+    "notes": "Merchant commerce and point-of-sale platform based in Noida",
+    "enabled": true,
+    "verified": false
+  },
+  {
+    "name": "Moglix",
+    "domain": "moglix.com",
+    "ats": "lever",
+    "slug": "moglix",
+    "sizeBucket": "mid",
+    "locations": [
+      "Noida",
+      "Delhi NCR"
+    ],
+    "notes": "B2B industrial procurement e-commerce in Noida",
+    "enabled": true,
+    "verified": false
+  },
+  {
+    "name": "Apna",
+    "domain": "apna.co",
+    "ats": "greenhouse",
+    "slug": "apna",
+    "sizeBucket": "mid",
+    "locations": [
+      "Bangalore",
+      "Remote India"
+    ],
+    "notes": "Jobs platform app testing and backend services",
+    "enabled": true,
+    "verified": false
+  },
+  {
+    "name": "Cuemath",
+    "domain": "cuemath.com",
+    "ats": "lever",
+    "slug": "cuemath",
+    "sizeBucket": "mid",
+    "locations": [
+      "Bangalore"
+    ],
+    "notes": "Edtech platform with interactive web/app testing",
+    "enabled": true,
+    "verified": false
+  },
+  {
+    "name": "Classplus",
+    "domain": "classplus.co",
+    "ats": "lever",
+    "slug": "classplus",
+    "sizeBucket": "mid",
+    "locations": [
+      "Noida",
+      "Delhi NCR"
+    ],
+    "notes": "Creator economy and coaching institute SaaS in Noida",
+    "enabled": true,
+    "verified": false
+  },
+  {
+    "name": "Porter",
+    "domain": "porter.in",
+    "ats": "greenhouse",
+    "slug": "porter",
+    "sizeBucket": "mid",
+    "locations": [
+      "Bangalore"
+    ],
+    "notes": "Intra-city logistics platform with mobility apps",
+    "enabled": true,
+    "verified": true
+  },
+  {
+    "name": "HealthifyMe",
+    "domain": "healthifyme.com",
+    "ats": "lever",
+    "slug": "healthifyme",
+    "sizeBucket": "mid",
+    "locations": [
+      "Bangalore"
+    ],
+    "notes": "Health and fitness tech company",
+    "enabled": true,
+    "verified": false
+  },
+  {
+    "name": "Bizongo",
+    "domain": "bizongo.com",
+    "ats": "lever",
+    "slug": "bizongo",
+    "sizeBucket": "mid",
+    "locations": [
+      "Mumbai",
+      "Bangalore",
+      "Delhi NCR"
+    ],
+    "notes": "B2B packaging and supply chain platform",
+    "enabled": true,
+    "verified": false
+  },
+  {
+    "name": "Spinny",
+    "domain": "spinny.com",
+    "ats": "lever",
+    "slug": "spinny",
+    "sizeBucket": "mid",
+    "locations": [
+      "Gurgaon",
+      "Delhi NCR"
+    ],
+    "notes": "Used car buying platform based in Gurgaon",
+    "enabled": true,
+    "verified": false
+  },
+  {
+    "name": "Games24x7",
+    "domain": "games24x7.com",
+    "ats": "greenhouse",
+    "slug": "games24x7",
+    "sizeBucket": "large",
+    "locations": [
+      "Bangalore",
+      "Mumbai"
+    ],
+    "notes": "Gaming platform (RummyCircle, My11Circle)",
+    "enabled": true,
+    "verified": false
+  },
+  {
+    "name": "Dream11",
+    "domain": "dreamsports.group",
+    "ats": "greenhouse",
+    "slug": "dream11",
+    "sizeBucket": "large",
+    "locations": [
+      "Mumbai"
+    ],
+    "notes": "Sports tech platform with heavy test automation",
+    "enabled": true,
+    "verified": false
+  },
+  {
+    "name": "Upstox",
+    "domain": "upstox.com",
+    "ats": "lever",
+    "slug": "upstox",
+    "sizeBucket": "large",
+    "locations": [
+      "Mumbai",
+      "Bangalore"
+    ],
+    "notes": "Discount broking and financial trading platform",
+    "enabled": true,
+    "verified": false
+  },
+  {
+    "name": "CoinSwitch",
+    "domain": "coinswitch.co",
+    "ats": "greenhouse",
+    "slug": "coinswitch",
+    "sizeBucket": "mid",
+    "locations": [
+      "Bangalore"
+    ],
+    "notes": "Crypto and investment platform",
+    "enabled": true,
+    "verified": false
+  },
+  {
+    "name": "Darwinbox",
+    "domain": "darwinbox.com",
+    "ats": "greenhouse",
+    "slug": "darwinbox",
+    "sizeBucket": "large",
+    "locations": [
+      "Hyderabad",
+      "Bangalore",
+      "Delhi NCR"
+    ],
+    "notes": "Enterprise HR tech SaaS platform",
+    "enabled": true,
+    "verified": false
+  },
+  {
+    "name": "Zupee",
+    "domain": "zupee.com",
+    "ats": "lever",
+    "slug": "zupee",
+    "sizeBucket": "mid",
+    "locations": [
+      "Gurgaon",
+      "Delhi NCR"
+    ],
+    "notes": "Gaming platform based in Gurgaon",
+    "enabled": true,
+    "verified": false
+  },
+  {
+    "name": "LeadSquared",
+    "domain": "leadsquared.com",
+    "ats": "workable",
+    "slug": "leadsquared",
+    "sizeBucket": "large",
+    "locations": [
+      "Bangalore",
+      "Noida"
+    ],
+    "notes": "Sales automation and CRM platform",
+    "enabled": true,
+    "verified": true
+  },
+  {
+    "name": "Wingify",
+    "domain": "wingify.com",
+    "ats": "ashby",
+    "slug": "wingify",
+    "sizeBucket": "mid",
+    "locations": [
+      "Delhi NCR",
+      "Remote India"
+    ],
+    "notes": "Makers of VWO (Visual Website Optimizer) headquartered in Delhi",
+    "enabled": true,
+    "verified": false
+  },
+  {
+    "name": "Remotive QA Feed",
+    "domain": "remotive.com",
+    "ats": "remotive",
+    "slug": "remotive-qa",
+    "sizeBucket": "large",
+    "locations": [
+      "Remote",
+      "Remote India",
+      "Remote global"
+    ],
+    "notes": "Aggregated public feed of remote QA & SDET positions",
+    "enabled": true,
+    "verified": true
+  },
+  {
+    "name": "RemoteOK QA Feed",
+    "domain": "remoteok.com",
+    "ats": "remoteok",
+    "slug": "remoteok-qa",
+    "sizeBucket": "large",
+    "locations": [
+      "Remote",
+      "Remote India",
+      "Remote global"
+    ],
+    "notes": "Aggregated public feed of remote QA jobs",
+    "enabled": true,
+    "verified": true
+  },
+  {
+    "name": "Example",
+    "domain": "example.com",
+    "ats": "custom",
+    "slug": "https://example.com/careers",
+    "sizeBucket": "mid",
+    "locations": [
+      "India",
+      "Remote India"
+    ],
+    "enabled": true,
+    "verified": false,
+    "notes": "Added via add-company from https://example.com/careers",
+    "customUrl": "https://example.com/careers",
+    "listSelector": "[data-job-id], .job-card, .job-listing, li[class*=\"job\"]",
+    "titleSelector": "h2, h3, .title, a",
+    "linkSelector": "a"
   }
 ]

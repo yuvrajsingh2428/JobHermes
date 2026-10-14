@@ -216,7 +216,7 @@ export class DashboardServer {
     });
 
     // Catch-all route to serve dashboard index.html
-    this.app.get('*', (_req, res) => {
+    this.app.get('(.*)', (_req, res) => {
       const indexPath = path.join(process.cwd(), 'src', 'dashboard', 'public', 'index.html');
       res.sendFile(indexPath);
     });

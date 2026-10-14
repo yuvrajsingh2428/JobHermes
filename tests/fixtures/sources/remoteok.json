@@ -1,0 +1,26 @@
+[
+  {
+    "legal": "This data is provided by RemoteOK"
+  },
+  {
+    "id": "rok-101",
+    "epoch": 1728600000,
+    "date": "2026-10-12T00:00:00Z",
+    "company": "AutomateHQ",
+    "position": "SDET / QA Automation Engineer",
+    "tags": ["qa", "testing", "selenium", "java"],
+    "description": "Design test frameworks with Selenium and TestNG.",
+    "location": "Worldwide",
+    "url": "https://remoteok.com/remote-jobs/rok-101"
+  },
+  {
+    "id": "rok-102",
+    "epoch": 1728500000,
+    "company": "DevCo",
+    "position": "Rust Systems Engineer",
+    "tags": ["rust", "systems"],
+    "description": "Kernel and low level systems.",
+    "location": "Worldwide",
+    "url": "https://remoteok.com/remote-jobs/rok-102"
+  }
+]

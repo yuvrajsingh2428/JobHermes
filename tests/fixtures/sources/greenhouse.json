@@ -1,0 +1,24 @@
+{
+  "jobs": [
+    {
+      "id": 101,
+      "title": "SDET II - Core Framework",
+      "absolute_url": "https://boards.greenhouse.io/postman/jobs/101",
+      "location": {
+        "name": "Bangalore, India"
+      },
+      "updated_at": "2026-10-10T08:00:00Z",
+      "content": "&lt;p&gt;We are looking for an SDET with 2+ years of experience in Java, Selenium, REST Assured, and CI/CD pipelines.&lt;/p&gt;"
+    },
+    {
+      "id": 102,
+      "title": "Software Engineer - Backend",
+      "absolute_url": "https://boards.greenhouse.io/postman/jobs/102",
+      "location": {
+        "name": "Remote, India"
+      },
+      "updated_at": "2026-10-09T08:00:00Z",
+      "content": "&lt;p&gt;Backend engineer building Go and Node microservices.&lt;/p&gt;"
+    }
+  ]
+}
