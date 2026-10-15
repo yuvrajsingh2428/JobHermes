@@ -12,6 +12,7 @@ export interface ScoringContext {
   hasCompanySignal?: boolean;
   signalType?: string;
   signalDetail?: string;
+  signalSource?: string;
 }
 
 export class ScoringService {
@@ -141,18 +142,39 @@ export class ScoringService {
       }
     }
 
-    // Weight primary SDET anchors
-    const primaryAnchors = ['Selenium', 'Playwright', 'REST Assured', 'TestNG', 'Jenkins', 'Java', 'Python', 'Cypress'];
+    // Primary SDET core tools and technologies
+    const primaryAnchors = [
+      'Selenium',
+      'Playwright',
+      'Cypress',
+      'REST Assured',
+      'Postman',
+      'TestNG',
+      'JUnit',
+      'PyTest',
+      'Jenkins',
+      'Java',
+      'Python',
+      'JavaScript',
+      'TypeScript',
+      'Docker',
+      'API Testing',
+      'CI/CD Integration',
+      'Git',
+      'Cucumber',
+    ];
     const matchedAnchors = matched.filter((s) => primaryAnchors.includes(s));
 
     let points = 0;
     if (canonicalSkills.length === 0) {
-      points = 12; // Unspecified skills neutral mid
+      points = 15; // Unspecified skills neutral mid
     } else {
       const matchRatio = matched.length / Math.max(canonicalSkills.length, 1);
-      // Anchor bonus
-      const anchorPoints = Math.min(15, matchedAnchors.length * 3);
-      points = Math.min(30, Math.round(matchRatio * 15 + anchorPoints));
+      // Primary match ratio gives up to 24 points (8/10 -> 19.2)
+      const basePoints = matchRatio * 24;
+      // Core anchor bonus gives up to 6 points (1.0 pt per matched core anchor)
+      const anchorPoints = Math.min(6, matchedAnchors.length * 1.0);
+      points = Math.min(30, Math.round(basePoints + anchorPoints));
     }
 
     const reason = `${matched.length} skills matched (${matched.slice(0, 4).join(', ') || 'none'}) of ${canonicalSkills.length} requested (${points}/30)`;
@@ -256,6 +278,9 @@ export class ScoringService {
 
   private scoreHiringSignal(context?: ScoringContext): { points: number; reason: string } {
     if (context?.hasCompanySignal) {
+      if (context.signalSource === 'demo' || context.signalSource === 'test') {
+        return { points: 0, reason: `Ignored demo/test signal [${context.signalType || 'demo'}] (0/10)` };
+      }
       if (context.signalType === 'layoffs') {
         return { points: 0, reason: `Company signal indicates recent layoffs (${context.signalDetail}) (0/10)` };
       }
@@ -293,7 +318,7 @@ export class ScoringService {
     logger.info(`Scoring ${jobs.length} jobs with 100-pt SDET scoring engine...`);
 
     const scored: JobPosting[] = jobs.map((job) => {
-      const ctx = companyContexts?.get(job.company.toLowerCase());
+      const ctx = companyContexts?.get(job.company.toLowerCase()) || companyContexts?.get(job.company);
       const breakdown = this.scoreJob(job, profile, ctx);
 
       return {

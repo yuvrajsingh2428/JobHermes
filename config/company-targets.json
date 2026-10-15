@@ -30,15 +30,16 @@
     "verified": false
   },
   {
-    "name": "CRED",
-    "domain": "cred.club",
+    "name": "Cred",
+    "domain": "jobs.lever.co",
     "ats": "lever",
     "slug": "cred",
     "sizeBucket": "mid",
     "locations": [
-      "Bangalore"
+      "India",
+      "Remote India"
     ],
-    "notes": "Fintech with high bar for automation quality",
+    "notes": "Added via add-company from https://jobs.lever.co/cred",
     "enabled": true,
     "verified": true
   },
@@ -565,23 +566,5 @@
     "notes": "Aggregated public feed of remote QA jobs",
     "enabled": true,
     "verified": true
-  },
-  {
-    "name": "Example",
-    "domain": "example.com",
-    "ats": "custom",
-    "slug": "https://example.com/careers",
-    "sizeBucket": "mid",
-    "locations": [
-      "India",
-      "Remote India"
-    ],
-    "enabled": true,
-    "verified": false,
-    "notes": "Added via add-company from https://example.com/careers",
-    "customUrl": "https://example.com/careers",
-    "listSelector": "[data-job-id], .job-card, .job-listing, li[class*=\"job\"]",
-    "titleSelector": "h2, h3, .title, a",
-    "linkSelector": "a"
   }
 ]

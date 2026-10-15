@@ -96,7 +96,7 @@ export class ContactService {
     if (company.sizeBucket === 'startup') {
       return {
         targetTitles: ['Founder', 'Co-Founder', 'CTO', 'Head of Engineering', 'QA Lead', 'Engineering Manager'],
-        priorityTypes: ['founder_cto', 'eng_manager', 'qa_manager'],
+        priorityTypes: ['founder_cto', 'sdet_lead', 'eng_manager', 'qa_manager'],
         rationale: 'In early-stage startups (<50 people), founders and CTOs hire engineers directly and respond fastest.',
       };
     }
@@ -104,7 +104,7 @@ export class ContactService {
     if (company.sizeBucket === 'large') {
       return {
         targetTitles: ['Technical Recruiter', 'Talent Acquisition Partner', 'QA Engineering Manager', 'SDET Manager', 'Director of QA'],
-        priorityTypes: ['recruiter', 'qa_manager', 'eng_manager'],
+        priorityTypes: ['recruiter', 'qa_manager', 'sdet_lead', 'eng_manager'],
         rationale: 'In large enterprises, recruiters filter applications and QA engineering managers hold hiring headcount.',
       };
     }
@@ -112,7 +112,7 @@ export class ContactService {
     // Mid-size
     return {
       targetTitles: ['Engineering Manager', 'QA Manager', 'Lead SDET', 'Technical Recruiter'],
-      priorityTypes: ['qa_manager', 'eng_manager', 'recruiter'],
+      priorityTypes: ['sdet_lead', 'qa_manager', 'eng_manager', 'recruiter'],
       rationale: 'In growth-stage tech firms, engineering managers and QA leads make immediate interview decisions.',
     };
   }
@@ -145,7 +145,10 @@ export class ContactService {
 
   // ─── CSV Contact Importer ──────────────────────────────────
 
-  importContactsFromCsv(csvFilePath: string): { imported: number; failed: number; errors: string[] } {
+  importContactsFromCsv(
+    csvFilePath: string,
+    options?: { defaultStatus?: EmailStatus; source?: string }
+  ): { imported: number; failed: number; errors: string[] } {
     const resolved = path.resolve(csvFilePath);
     if (!fs.existsSync(resolved)) {
       throw new Error(`CSV file not found at: ${resolved}`);
@@ -217,7 +220,7 @@ export class ContactService {
 
         // Infer contact type from title
         const contactType = this.inferContactType(title);
-        const emailStatus: EmailStatus = email && email.includes('@') ? 'verified' : 'unknown';
+        const emailStatus: EmailStatus = options?.defaultStatus || 'unknown';
 
         this.storage.addContact({
           companyId: company.id,
@@ -228,7 +231,7 @@ export class ContactService {
           email: email || undefined,
           emailStatus,
           timezone,
-          source: 'csv_import',
+          source: options?.source || 'csv_import',
         });
 
         imported++;
@@ -242,13 +245,23 @@ export class ContactService {
     return { imported, failed, errors };
   }
 
-  private inferContactType(title: string): ContactType {
+  inferContactType(title: string): ContactType {
     const t = title.toLowerCase();
     if (/\b(founder|co-founder|ceo|cto)\b/i.test(t)) return 'founder_cto';
-    if (/\b(qa manager|test manager|qa engineering manager|head of qa|director of qa)\b/i.test(t)) return 'qa_manager';
+    if (/\b(lead sdet|sdet lead|lead qa|qa lead|lead test|test lead|principal sdet|staff sdet)\b/i.test(t)) {
+      return 'sdet_lead';
+    }
+    if (/\b(qa manager|test manager|qa engineering manager|head of qa|director of qa|quality manager)\b/i.test(t)) {
+      return 'qa_manager';
+    }
     if (/\b(recruiter|talent|sourcer|staffing|ta partner)\b/i.test(t)) return 'recruiter';
     if (/\b(engineering manager|eng manager|em|director of engineering|vp of engineering)\b/i.test(t)) return 'eng_manager';
     return 'generic_careers';
+  }
+
+  verifyContact(contactId: number): void {
+    this.storage.verifyContact(contactId);
+    logger.success(`Contact ID #${contactId} email marked as verified.`);
   }
 
   getContacts(companyName?: string): ContactRecord[] {

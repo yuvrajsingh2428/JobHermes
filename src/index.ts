@@ -1,7 +1,3 @@
-// ============================================================
-// JobHermes – SDET Job-Search Copilot Main Entry Point
-// ============================================================
-
 import 'dotenv/config';
 import fs from 'fs';
 import { loadConfig } from './utils/config';
@@ -12,15 +8,26 @@ import { DashboardServer } from './dashboard/server';
 import { runVerifyTargets } from './sources/verify-targets';
 import { addCompanyFromUrl } from './sources/add-company';
 import { runDoctor } from './utils/doctor';
-import { hasFillMarkers, SignalType } from './types';
+import { hasFillMarkers, SignalType, CandidateProfile } from './types';
 import { StorageService } from './storage/database';
 import { ContactService } from './contacts/contact-service';
+import { DraftGenerator } from './outreach/draft-generator';
+import { SendService } from './outreach/send-service';
+import { ResumeTailor } from './outreach/resume-tailor';
+import { seedDemoSandbox, getDemoDbPath } from './utils/demo-sandbox';
+import { readJsonFile } from './utils/helpers';
 
-const args = process.argv.slice(2);
+const rawArgs = process.argv.slice(2);
 
 async function main(): Promise<void> {
+  const isDemo = process.env.DEMO_MODE === 'true' || rawArgs.includes('--demo');
+  const args = rawArgs.filter((a) => a !== '--demo');
   const flag = args[0];
-  const dbPath = process.env.DATABASE_PATH || './data/jobhermes.db';
+  const dbPath = isDemo ? getDemoDbPath() : (process.env.DATABASE_PATH || './data/jobhermes.db');
+
+  if (isDemo && !fs.existsSync(dbPath)) {
+    seedDemoSandbox(dbPath);
+  }
 
   if (flag === 'verify-targets' || flag === '--verify-targets') {
     await runVerifyTargets();
@@ -76,14 +83,17 @@ async function main(): Promise<void> {
         process.exit(1);
       }
 
+      const source = args[6] || (isDemo ? 'demo' : 'manual');
+
       storage.addSignal({
         companyId: company.id,
         signalType,
         detail,
         url,
+        source,
       });
 
-      logger.success(`Signal added for ${company.name}: [${signalType}] "${detail}"`);
+      logger.success(`Signal added for ${company.name}: [${signalType}] "${detail}" (source: ${source})`);
       return;
     }
 
@@ -154,6 +164,16 @@ async function main(): Promise<void> {
     const sub = args[1];
     const storage = new StorageService(dbPath);
     const contactService = new ContactService(storage);
+
+    if (sub === 'verify') {
+      const contactId = parseInt(args[2], 10);
+      if (!contactId) {
+        logger.error('Usage: npm run contacts verify <contact-id>');
+        process.exit(1);
+      }
+      contactService.verifyContact(contactId);
+      return;
+    }
 
     if (sub === 'todo') {
       const todo = contactService.getTodoCompanies();
@@ -234,6 +254,157 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
+  // ─── Outreach Engine CLI ───────────────────────────────────
+  if (flag === 'outreach' || flag === '--outreach') {
+    const sub = args[1];
+    const storage = new StorageService(dbPath);
+    const draftGen = new DraftGenerator();
+    const sendService = new SendService(storage);
+
+    if (sub === 'generate') {
+      const jobId = parseInt(args[2], 10);
+      const contactId = parseInt(args[3], 10);
+      if (!jobId || !contactId) {
+        logger.error('Usage: npm run outreach generate <job-id> <contact-id>');
+        process.exit(1);
+      }
+      const job = storage.getJobById(jobId);
+      const contact = storage.getContactById(contactId);
+      if (!job || !contact) {
+        logger.error(`Job #${jobId} or Contact #${contactId} not found in database.`);
+        process.exit(1);
+      }
+      const company = storage.getCompanyById(contact.companyId) || {
+        name: job.company,
+        domain: '',
+        sizeBucket: 'mid',
+        ats: 'custom',
+      };
+      const signals = storage.getSignalsForCompany(contact.companyId, { excludeDemo: !isDemo });
+      const profile = readJsonFile<CandidateProfile>('./config/candidate-profile.json');
+
+      const pack = draftGen.generateDrafts(profile, job, contact, company, signals, { allowFillForDemo: isDemo });
+
+      const idA = storage.addOutreach({
+        contactId,
+        jobId,
+        type: 'cold',
+        variant: 'A',
+        subject: pack.variantA.subject,
+        body: pack.variantA.body,
+        status: 'draft',
+        source: isDemo ? 'demo' : 'manual',
+      });
+
+      const idB = storage.addOutreach({
+        contactId,
+        jobId,
+        type: 'cold',
+        variant: 'B',
+        subject: pack.variantB.subject,
+        body: pack.variantB.body,
+        status: 'draft',
+        source: isDemo ? 'demo' : 'manual',
+      });
+
+      logger.section('Generated Cold Outreach Drafts');
+      logger.info(`Draft #A (ID: ${idA}):`);
+      logger.info(`Subject: ${pack.variantA.subject}\n\n${pack.variantA.body}\n`);
+      logger.info(`Draft #B (ID: ${idB}):`);
+      logger.info(`Subject: ${pack.variantB.subject}\n\n${pack.variantB.body}\n`);
+      logger.section('LinkedIn DM Referral Ask');
+      logger.info(pack.linkedInDm);
+      return;
+    }
+
+    if (sub === 'list' || !sub) {
+      const filterStatus = args[2];
+      const drafts = storage.getAllOutreach(filterStatus ? { status: filterStatus } : undefined);
+      logger.section('Outreach Queue & Drafts');
+      if (drafts.length === 0) {
+        logger.info('No outreach drafts found.');
+      } else {
+        drafts.forEach((d) => {
+          const contact = storage.getContactById(d.contactId);
+          logger.info(
+            `  • #${d.id} [${d.status.toUpperCase()}] Var ${d.variant || 'A'} | To: ${contact?.fullName || 'Contact ' + d.contactId} (${contact?.email || 'no email'})`
+          );
+          logger.info(`     Subject: ${d.subject}`);
+          if (d.sentAt) logger.info(`     Sent: ${d.sentAt}`);
+          if (d.error) logger.warn(`     Error: ${d.error}`);
+        });
+      }
+      return;
+    }
+
+    if (sub === 'approve') {
+      const id = parseInt(args[2], 10);
+      if (!id) {
+        logger.error('Usage: npm run outreach approve <id>');
+        process.exit(1);
+      }
+      storage.updateOutreachStatus(id, 'approved');
+      logger.success(`Outreach draft #${id} approved for sending.`);
+      return;
+    }
+
+    if (sub === 'edit') {
+      const id = parseInt(args[2], 10);
+      const subject = args[3];
+      const body = args.slice(4).join(' ');
+      if (!id || !subject || !body) {
+        logger.error('Usage: npm run outreach edit <id> "<subject>" "<body>"');
+        process.exit(1);
+      }
+      storage.updateOutreachContent(id, subject, body);
+      logger.success(`Outreach draft #${id} updated.`);
+      return;
+    }
+
+    if (sub === 'send') {
+      const id = parseInt(args[2], 10);
+      if (!id) {
+        logger.error('Usage: npm run outreach send <id>');
+        process.exit(1);
+      }
+      const profile = readJsonFile<CandidateProfile>('./config/candidate-profile.json');
+      const res = await sendService.sendOutreach(id, profile, { bypassTimezone: isDemo, allowDemo: isDemo });
+      if (res.success) {
+        logger.success(`Outreach #${id} sent successfully!${res.emlPath ? ` (Dry-run file: ${res.emlPath})` : ''}`);
+      } else {
+        logger.error(`Send failed for #${id}: ${res.error}`);
+        process.exit(1);
+      }
+      return;
+    }
+
+    if (sub === 'tailor') {
+      const jobId = parseInt(args[2], 10);
+      if (!jobId) {
+        logger.error('Usage: npm run outreach tailor <job-id>');
+        process.exit(1);
+      }
+      const job = storage.getJobById(jobId);
+      if (!job) {
+        logger.error(`Job #${jobId} not found in database.`);
+        process.exit(1);
+      }
+      const profile = readJsonFile<CandidateProfile>('./config/candidate-profile.json');
+      const tailor = new ResumeTailor();
+      const result = tailor.tailorResume('./config/base-resume.md', job, profile, {
+        allowFillForDemo: isDemo,
+        saveDir: './output/tailored-resumes',
+      });
+      logger.section(`Tailored Resume for ${job.title} @ ${job.company}`);
+      logger.info(result.diffSummary);
+      if (result.outputPath) logger.success(`Saved to: ${result.outputPath}`);
+      return;
+    }
+
+    logger.error('Unknown outreach command. Use: outreach list | outreach approve <id> | outreach edit <id> | outreach send <id> | outreach tailor <jobId>');
+    process.exit(1);
+  }
+
   if (flag === '--help' || flag === '-h') {
     logger.section('JobHermes SDET Copilot CLI Usage');
     logger.info('Options:');
@@ -243,11 +414,18 @@ async function main(): Promise<void> {
     logger.info('  signal add <company> <type> <detail>  Record company growth/hiring signal for score bonus');
     logger.info('  signal list [company]                 Display company signals');
     logger.info('  import-contacts <csv-path>            Import contacts with roles, emails, and timezones');
+    logger.info('  contacts verify <id>                  Mark contact email as verified');
     logger.info('  contacts list [company]               List saved contacts and outreach readiness');
     logger.info('  contacts todo                         List companies needing contact discovery with persona rules');
     logger.info('  application add <job-id> [notes]      Record direct manual application');
     logger.info('  application list                      View direct application history');
+    logger.info('  outreach generate <jobId> <contactId> Generate fact-grounded A/B cold drafts + LinkedIn DM');
+    logger.info('  outreach list [status]                List outreach queue and approval statuses');
+    logger.info('  outreach approve <id>                 Approve an outreach draft for sending');
+    logger.info('  outreach edit <id> <subj> <body>      Edit outreach subject and body');
+    logger.info('  outreach send <id>                    Safely send approved outreach (writes .eml in dry-run mode)');
     logger.info('  --scan                                Run an immediate job scan across active ATS sources');
+    logger.info('  --scan --all-titles                   List all QA/test titles across sources regardless of score');
     logger.info('  --resume <job-id>                     Generate a tailored resume for a job');
     logger.info('  --cover-letter <job-id> [tone]        Generate a tailored cover letter (professional | enthusiastic | concise)');
     logger.info('  --apply <job-id> [tone]               Generate application pack (resume + cover letter)');
@@ -292,7 +470,20 @@ async function main(): Promise<void> {
 
   const agent = new HermesAgent(config);
 
-  if (flag === '--scan') {
+  if (flag === '--scan' || flag === 'scan') {
+    if (args.includes('--all-titles') || process.argv.includes('--all-titles')) {
+      logger.section('All QA / Test Titles Across Enabled Targets');
+      const allTitles = await agent.scanAllQaTitles();
+      logger.info(`Found ${allTitles.length} QA/test roles across targets:\n`);
+      allTitles.forEach((t, i) => {
+        const tag = t.isSdetMatch ? '[SDET / Automation]' : '[General / Manual QA]';
+        logger.info(`  #${i + 1} ${tag} ${t.title} @ ${t.company} (${t.location})`);
+        logger.info(`     URL: ${t.url}`);
+      });
+      agent.shutdown();
+      return;
+    }
+
     logger.info('Running immediate job scan...');
     await agent.runDailyScan();
     agent.shutdown();
