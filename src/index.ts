@@ -1,5 +1,6 @@
 import 'dotenv/config';
 import fs from 'fs';
+import path from 'path';
 import { loadConfig } from './utils/config';
 import { HermesAgent } from './agent/hermes-agent';
 import { Scheduler } from './scheduler/scheduler';
@@ -17,6 +18,7 @@ import { ResumeTailor } from './outreach/resume-tailor';
 import { FollowUpService } from './outreach/follow-up-service';
 import { seedDemoSandbox, getDemoDbPath } from './utils/demo-sandbox';
 import { readJsonFile } from './utils/helpers';
+import { rescoreAllJobs } from './scoring/rescore';
 
 const rawArgs = process.argv.slice(2);
 
@@ -275,6 +277,10 @@ async function main(): Promise<void> {
         logger.error(`Job #${jobId} or Contact #${contactId} not found in database.`);
         process.exit(1);
       }
+      if (job.status === 'closed') {
+        logger.error(`Cannot draft outreach for closed job #${jobId} (${job.title} @ ${job.company}).`);
+        process.exit(1);
+      }
       const company = storage.getCompanyById(contact.companyId) || {
         name: job.company,
         domain: '',
@@ -438,6 +444,136 @@ async function main(): Promise<void> {
 
     logger.error('Unknown outreach command. Use: outreach list | outreach approve <id> | outreach edit <id> | outreach send <id> | outreach tailor <jobId> | outreach followups | outreach reply <id>');
     process.exit(1);
+  }
+
+  // ─── 8. CLI: Daily Digest ────────────────────────────────────
+  if (flag === 'digest' || flag === '--digest') {
+    const isDemo = process.env.DEMO_MODE === 'true' || args.includes('--demo');
+    const storage = isDemo ? new StorageService('./data/demo.db') : new StorageService('./data/jobhermes.db');
+
+    logger.section(`JobHermes SDET Copilot Daily Digest ${isDemo ? '[DEMO SANDBOX]' : '[LIVE]'}`);
+    const allJobs = storage.getAllJobs();
+    const qualifiedJobs = allJobs.filter((j) => (j.score ?? 0) >= 60);
+    const nearMissJobs = allJobs.filter((j) => (j.score ?? 0) >= 40 && (j.score ?? 0) < 60);
+    const contacts = storage.getAllContacts();
+    const verifiedContacts = contacts.filter((c) => c.emailStatus === 'verified');
+    const outreach = storage.getAllOutreach();
+    const pendingDrafts = outreach.filter((o) => o.status === 'draft');
+    const sentToday = storage.getDailySentCount();
+    const bounceStats = storage.getRecentBounceStats();
+
+    logger.info(`📅 Date: ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`);
+    logger.info(`⏰ Next Scheduled Scan: 08:30 AM IST (Asia/Kolkata)`);
+    logger.info('');
+    logger.info(`📊 Job Opportunities:`);
+    logger.info(`  • Total Tracked: ${allJobs.length}`);
+    logger.info(`  • Top SDET Qualified (≥60): ${qualifiedJobs.length}`);
+    logger.info(`  • Near Misses (40–59): ${nearMissJobs.length}`);
+    logger.info('');
+    logger.info(`👥 Human Contacts:`);
+    logger.info(`  • Discovered: ${contacts.length}`);
+    logger.info(`  • Verified: ${verifiedContacts.length}`);
+    logger.info('');
+    logger.info(`✉️ Outreach Pipeline:`);
+    logger.info(`  • Pending Approvals: ${pendingDrafts.length} drafts awaiting human review`);
+    logger.info(`  • Sent Today: ${sentToday} / 20 max daily cap`);
+    logger.info(`  • Bounces: ${bounceStats.bounced} (Rate: ${(bounceStats.bounceRate * 100).toFixed(1)}%)`);
+    logger.info('');
+
+    if (pendingDrafts.length > 0) {
+      logger.info('🎯 Action Needed: Run "npm run outreach list" to review and approve pending drafts.');
+    } else if (qualifiedJobs.length > 0 && contacts.length === 0) {
+      logger.info('🎯 Action Needed: Run "npm run contacts todo" to identify target human contacts for top jobs.');
+    } else {
+      logger.info('✅ System running smoothly. All queues up to date.');
+    }
+
+    storage.close();
+    return;
+  }
+
+  // ─── 9. CLI: Data Export ─────────────────────────────────────
+  if (flag === 'export' || flag === '--export') {
+    const isDemo = process.env.DEMO_MODE === 'true' || args.includes('--demo');
+    const storage = isDemo ? new StorageService('./data/demo.db') : new StorageService('./data/jobhermes.db');
+    const exportType = args[1] || 'all';
+    const format = args[2] || 'json';
+
+    const exportDir = path.resolve('./output/exports');
+    if (!fs.existsSync(exportDir)) fs.mkdirSync(exportDir, { recursive: true });
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    logger.section(`Exporting JobHermes Data (${exportType})`);
+
+    const data: Record<string, unknown> = {};
+    if (exportType === 'all' || exportType === 'jobs') data.jobs = storage.getAllJobs();
+    if (exportType === 'all' || exportType === 'contacts') data.contacts = storage.getAllContacts();
+    if (exportType === 'all' || exportType === 'outreach') data.outreach = storage.getAllOutreach();
+    if (exportType === 'all' || exportType === 'applications') data.applications = storage.getApplications();
+
+    const fileName = `export-${exportType}-${timestamp}.${format === 'csv' ? 'csv' : 'json'}`;
+    const filePath = path.join(exportDir, fileName);
+
+    if (format === 'csv' && exportType !== 'all') {
+      const items = (data[exportType] || []) as Record<string, unknown>[];
+      if (items.length > 0) {
+        const headers = Object.keys(items[0]).join(',');
+        const rows = items.map((it) => Object.values(it).map((v) => `"${String(v || '').replace(/"/g, '""')}"`).join(','));
+        fs.writeFileSync(filePath, [headers, ...rows].join('\n'), 'utf-8');
+      } else {
+        fs.writeFileSync(filePath, '', 'utf-8');
+      }
+    } else {
+      fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8');
+    }
+
+    logger.success(`Data exported successfully to: ${filePath}`);
+    storage.close();
+    return;
+  }
+
+  // ─── 10. CLI: Database Backup ────────────────────────────────
+  if (flag === 'backup' || flag === '--backup') {
+    const backupDir = path.resolve('./data/backups');
+    if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
+
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+    const dbPath = path.resolve('./data/jobhermes.db');
+    const backupPath = path.join(backupDir, `jobhermes-${timestamp}.db`);
+
+    if (fs.existsSync(dbPath)) {
+      fs.copyFileSync(dbPath, backupPath);
+      logger.success(`Database backed up successfully to: ${backupPath}`);
+    } else {
+      logger.error(`Database not found at: ${dbPath}`);
+      process.exit(1);
+    }
+    return;
+  }
+
+  // ─── 11. CLI: Rescore Jobs ───────────────────────────────────
+  if (flag === 'rescore' || flag === '--rescore') {
+    const isDemo = process.env.DEMO_MODE === 'true' || args.includes('--demo');
+    const storage = isDemo ? new StorageService('./data/demo.db') : new StorageService('./data/jobhermes.db');
+    const profilePath = path.resolve('./config/candidate-profile.json');
+    const profile: CandidateProfile = JSON.parse(fs.readFileSync(profilePath, 'utf-8'));
+
+    logger.section(`Rescoring All Tracked Opportunities ${isDemo ? '[DEMO]' : '[LIVE]'}`);
+    const results = rescoreAllJobs(storage, profile);
+
+    if (results.length === 0) {
+      logger.info('No jobs found in database to rescore.');
+    } else {
+      for (const r of results) {
+        logger.info(`Job #${r.jobId} "${r.title}" @ ${r.company}:`);
+        logger.info(`  • Score:  ${r.oldScore} -> ${r.newScore} (Hiring Signal: ${r.breakdown.hiringSignal})`);
+        logger.info(`  • Status: ${r.oldStatus} -> ${r.newStatus}`);
+      }
+      logger.success(`Rescored ${results.length} jobs successfully.`);
+    }
+
+    storage.close();
+    return;
   }
 
   if (flag === '--help' || flag === '-h') {
