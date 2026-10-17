@@ -133,6 +133,49 @@ export const SDET_SKILL_SYNONYMS: SkillSynonym[] = [
   },
 ];
 
+export function matchSkillInText(skillName: string, text: string): boolean {
+  const lowerText = text.toLowerCase();
+  const lowerSkill = skillName.toLowerCase();
+
+  // 1. Literal substring match
+  if (lowerText.includes(lowerSkill)) return true;
+
+  // 2. Specific tool-to-concept equivalences for SDET keyword gap analysis
+  if (lowerSkill === 'api testing') {
+    if (/\b(api test(ing)?|rest api|web services|microservices|rest[- ]?assured|postman)\b/i.test(text)) {
+      return true;
+    }
+  }
+
+  if (lowerSkill === 'ci/cd integration' || lowerSkill === 'ci/cd') {
+    if (/\b(ci\/?cd|continuous integration|pipelines?|jenkins|github actions|gitlab)\b/i.test(text)) {
+      return true;
+    }
+  }
+
+  // 3. Exact match with canonical entry in SDET_SKILL_SYNONYMS
+  const canonicalEntry = SDET_SKILL_SYNONYMS.find(
+    (item) => item.canonical.toLowerCase() === lowerSkill
+  );
+  if (canonicalEntry) {
+    for (const pattern of canonicalEntry.patterns) {
+      if (pattern.test(text)) return true;
+    }
+  }
+
+  // 4. Pattern match: if skillName matches any pattern of an entry whose patterns match text
+  for (const item of SDET_SKILL_SYNONYMS) {
+    const isThisSkill = item.canonical.toLowerCase() === lowerSkill || item.patterns.some((p) => p.test(skillName));
+    if (isThisSkill) {
+      for (const pattern of item.patterns) {
+        if (pattern.test(text)) return true;
+      }
+    }
+  }
+
+  return false;
+}
+
 export function extractSkillsFromText(text: string): { canonicalSkills: string[]; totalWeightedScore: number } {
   const found = new Set<string>();
   let score = 0;

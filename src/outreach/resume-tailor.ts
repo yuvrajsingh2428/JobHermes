@@ -7,6 +7,8 @@ import path from 'path';
 import { CandidateProfile, JobPosting, hasFillMarkers } from '../types';
 import { logger } from '../utils/logger';
 
+import { extractSkillsFromText, matchSkillInText } from '../scoring/skill-synonyms';
+
 export interface TailoredResumeResult {
   tailoredMarkdown: string;
   matchedKeywords: string[];
@@ -47,17 +49,28 @@ export class ResumeTailor {
       }
     }
 
-    let matchedKeywords = job.scoreBreakdown?.matchedSkills || [];
-    let missingKeywords = job.scoreBreakdown?.missingSkills || [];
+    // Extract JD technical terms & skills
+    const fullJdText = `${job.title}\n${job.description || ''}\n${(job.skills || []).join(' ')}`;
+    const { canonicalSkills } = extractSkillsFromText(fullJdText);
 
-    if (matchedKeywords.length === 0 && job.skills && job.skills.length > 0) {
-      const candidateSkills = Object.values(profile.skills).flat();
-      matchedKeywords = job.skills.filter((js) =>
-        candidateSkills.some((cs) => cs.toLowerCase() === js.toLowerCase())
-      );
-      missingKeywords = job.skills.filter(
-        (js) => !candidateSkills.some((cs) => cs.toLowerCase() === js.toLowerCase())
-      );
+    // Combine all JD skills from JD text extraction, job.skills, and scoreBreakdown
+    const allJdSkills = Array.from(new Set([
+      ...(job.skills || []),
+      ...(job.scoreBreakdown?.matchedSkills || []),
+      ...(job.scoreBreakdown?.missingSkills || []),
+      ...canonicalSkills,
+    ]));
+
+    const matchedKeywords: string[] = [];
+    const missingKeywords: string[] = [];
+
+    for (const skill of allJdSkills) {
+      // Check if skill is matched via exact or synonym patterns in base resume
+      if (matchSkillInText(skill, baseContent)) {
+        matchedKeywords.push(skill);
+      } else {
+        missingKeywords.push(skill);
+      }
     }
 
     // Parse sections and reorder bullet points based on matched keywords
@@ -65,15 +78,15 @@ export class ResumeTailor {
     const outputLines: string[] = [];
     const bulletBuffer: string[] = [];
     const reorderedDiff: string[] = [];
+    let currentSectionHeader = '## General';
 
     const flushBullets = () => {
       if (bulletBuffer.length === 0) return;
       // Score each bullet by how many matched keywords it contains
       const scoredBullets = bulletBuffer.map((b) => {
         let matchCount = 0;
-        const lower = b.toLowerCase();
         for (const kw of matchedKeywords) {
-          if (lower.includes(kw.toLowerCase())) matchCount++;
+          if (matchSkillInText(kw, b)) matchCount++;
         }
         return { text: b, score: matchCount };
       });
@@ -82,7 +95,7 @@ export class ResumeTailor {
       const sorted = [...scoredBullets].sort((a, b) => b.score - a.score);
       const isReordered = sorted.some((item, idx) => item.text !== bulletBuffer[idx]);
       if (isReordered) {
-        reorderedDiff.push(`[Section Bullet Reordering for "${job.title}"]`);
+        reorderedDiff.push(`[Section Bullet Reordering for ${currentSectionHeader}]`);
         sorted.forEach((item, idx) => {
           if (item.score > 0) {
             reorderedDiff.push(`  + (Rank #${idx + 1}, matches ${item.score} kw): ${item.text.trim()}`);
@@ -94,7 +107,11 @@ export class ResumeTailor {
     };
 
     for (const line of lines) {
-      if (line.trim().startsWith('- ') || line.trim().startsWith('* ')) {
+      if (line.trim().startsWith('#')) {
+        flushBullets();
+        currentSectionHeader = line.trim();
+        outputLines.push(line);
+      } else if (line.trim().startsWith('- ') || line.trim().startsWith('* ')) {
         bulletBuffer.push(line);
       } else {
         flushBullets();

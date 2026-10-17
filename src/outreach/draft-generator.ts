@@ -15,6 +15,7 @@ export interface DraftLintResult {
   hasProofPoint: boolean;
   hasSingleAsk: boolean;
   hasOptOut: boolean;
+  hasUnsupportedClaims?: boolean;
 }
 
 export interface GeneratedOutreachPack {
@@ -58,8 +59,13 @@ export const FLUFF_PATTERNS = [
  * - At least one concrete metric / proof point
  * - Exactly one call-to-action ask (?)
  * - Polite opt-out line
+ * - Grounding: flags unsupported company claims (expanding, funding, etc.) without verified signal/brief
  */
-export function lintOutreachDraft(subject: string, body: string): DraftLintResult {
+export function lintOutreachDraft(
+  subject: string,
+  body: string,
+  context?: { hasSignal?: boolean; hasBrief?: boolean }
+): DraftLintResult {
   const warnings: string[] = [];
 
   const subjectWords = subject.trim().split(/\s+/).filter(Boolean);
@@ -84,6 +90,14 @@ export function lintOutreachDraft(subject: string, body: string): DraftLintResul
   }
   if (fluffMatches.length > 0) {
     warnings.push(`Fluff phrase detected: "${fluffMatches.join('", "')}"`);
+  }
+
+  // Grounding check for unbacked company claims
+  const companyClaimPattern = /\b(expanding|scaling|growth|funding|series [a-z]|raised|doubling headcount)\b/i;
+  const claimMatch = body.match(companyClaimPattern);
+  const hasUnsupportedClaims = Boolean(claimMatch && context && !context.hasSignal && !context.hasBrief);
+  if (hasUnsupportedClaims && claimMatch) {
+    warnings.push(`Draft contains unsupported company claim ("${claimMatch[0]}") without a verified signal URL or research brief`);
   }
 
   // Proof point check (numbers, percentages, metrics)
@@ -119,6 +133,7 @@ export function lintOutreachDraft(subject: string, body: string): DraftLintResul
     hasProofPoint,
     hasSingleAsk,
     hasOptOut,
+    hasUnsupportedClaims,
   };
 }
 
@@ -144,7 +159,7 @@ export class DraftGenerator {
       }
     }
 
-    // 2. Strict Grounding: Filter signals to only verified real-source signals
+    // 2. Strict Grounding: Filter signals to only verified real-source signals with URLs
     const validSignals = signals.filter(
       (s) => s.source !== 'demo' && s.source !== 'test' && s.url && s.url.startsWith('http')
     );
@@ -152,13 +167,29 @@ export class DraftGenerator {
     const citedFacts: string[] = [];
 
     // Core candidate facts from profile
-    const candidateName = profile.name.includes('[FILL') ? 'Candidate' : profile.name;
+    let candidateName = profile.name;
+    if (!options?.allowFillForDemo) {
+      if (!candidateName || candidateName.includes('[FILL') || candidateName.toLowerCase().trim() === 'candidate') {
+        throw new Error(
+          `Refusing to generate outreach in real mode: candidate name "${candidateName || ''}" is invalid or a placeholder. Set your real name in config/candidate-profile.json.`
+        );
+      }
+    } else {
+      if (!candidateName || candidateName.includes('[FILL')) {
+        candidateName = 'Candidate';
+      }
+    }
+
     const topSkills = (job.scoreBreakdown?.matchedSkills.slice(0, 3) || ['Playwright', 'Selenium', 'REST Assured']).join(', ');
     citedFacts.push(`Matched skills: ${topSkills}`);
 
     const achievementSnippet = profile.achievements.find((a) => !a.includes('[FILL')) ||
       'built automated regression suites reducing manual test cycles by 60%';
     citedFacts.push(`Key achievement: ${achievementSnippet}`);
+
+    const secondAchievement = profile.achievements.filter((a) => !a.includes('[FILL'))[1] ||
+      'built hybrid automation framework reducing execution time by 45%';
+    citedFacts.push(`Framework highlight: ${secondAchievement}`);
 
     let signalSnippet = '';
     if (validSignals.length > 0) {
@@ -181,14 +212,18 @@ export class DraftGenerator {
     // ─── Variant A: Problem/Solution & Framework Architecture Focus ─
     // Subject rule: under 8 words (< 8 words)
     const subjectA = `SDET test automation @ ${company.name}`;
+    const openingA = signalSnippet
+      ? `${signalSnippet}I have 2 years of SDET experience designing test automation frameworks with ${topSkills}.`
+      : `I came across the ${job.title} role at ${company.name} and wanted to reach out directly. I have 2 years of SDET experience designing test automation frameworks with ${topSkills}.`;
+
     const bodyA = [
       `Hi ${contactFirstName},`,
       ``,
-      `${signalSnippet}I noticed ${company.name} is expanding its QA coverage. I have 2 years of SDET experience designing test automation frameworks with ${topSkills}.`,
+      openingA,
       ``,
-      `In my recent role, I ${achievementSnippet}. My focus is building maintainable API and end-to-end suites that run fast in CI/CD without false alarms.`,
+      `In my recent role, I ${achievementSnippet}. Additionally, I ${secondAchievement.toLowerCase()} to prevent defects before production deployment.`,
       ``,
-      `Would you be open to a 10-minute chat this Thursday to see if my testing background aligns with your engineering roadmap?`,
+      `Would you be open to a brief 10-minute conversation next week to see if my testing background aligns with your team's needs?`,
       ``,
       `Best regards,`,
       `${candidateName}`,
@@ -202,11 +237,11 @@ export class DraftGenerator {
     const bodyB = [
       `Hi ${contactFirstName},`,
       ``,
-      `I came across the SDET opening at ${company.name} and wanted to reach out directly.`,
+      `I saw the ${job.title} opening at ${company.name} and wanted to reach out directly.`,
       ``,
-      `My core test stack matches your requirements: ${topSkills}. Over the past 2 years, I ${achievementSnippet}, with a continuous focus on shift-left defect prevention and API reliability.`,
+      `My core test stack matches your requirements: ${topSkills}. Over the past 2 years, I ${achievementSnippet}. I also ${secondAchievement.toLowerCase()} to accelerate testing feedback.`,
       ``,
-      `Would you be open to a brief 10-minute call this week to discuss how I could help ${company.name}'s QA coverage?`,
+      `Would you be open to a brief 10-minute conversation next week to discuss how I could contribute to ${company.name}'s QA engineering goals?`,
       ``,
       `Thanks,`,
       `${candidateName}`,
@@ -215,11 +250,16 @@ export class DraftGenerator {
     ].join('\n');
 
     // ─── LinkedIn DM Referral Ask (< 75 words) ─────────────────
-    const linkedInDm = `Hi ${contactFirstName}, noticed you're at ${company.name}. I'm an SDET with 2 years of test automation experience (${topSkills}) and saw your team's open SDET role. Would you be open to sharing a referral or pointing me to the hiring manager? Happy to share my resume and work samples if helpful. Thank you! – ${candidateName}`;
+    const linkedInDm = `Hi ${contactFirstName}, noticed you're at ${company.name}. I'm an SDET with 2 years of test automation experience (${topSkills}) and saw your open SDET role. Would you be open to pointing me to the hiring manager or sharing a referral? Happy to share my resume and work samples if helpful. Thank you! – ${candidateName}`;
     const linkedInWordCount = linkedInDm.trim().split(/\s+/).filter(Boolean).length;
 
-    const lintA = lintOutreachDraft(subjectA, bodyA);
-    const lintB = lintOutreachDraft(subjectB, bodyB);
+    const contextLint = {
+      hasSignal: validSignals.length > 0,
+      hasBrief: Boolean(company.researchBrief),
+    };
+
+    const lintA = lintOutreachDraft(subjectA, bodyA, contextLint);
+    const lintB = lintOutreachDraft(subjectB, bodyB, contextLint);
 
     logger.info(`Generated grounded outreach pack for ${contact.fullName} @ ${company.name} (Var A: ${lintA.wordCount}w, Var B: ${lintB.wordCount}w, DM: ${linkedInWordCount}w)`);
 

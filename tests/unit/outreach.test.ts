@@ -385,6 +385,69 @@ describe('Phase 3 Outreach Engine, Safety Rails & Grounding Tests', () => {
         expect(baseLines).toContain(bullet);
       }
     });
+
+    it('computes keyword gap directly against base resume content (e.g. JD asks for TypeScript and Cucumber)', () => {
+      const resumeFixturePath = path.resolve(__dirname, '../fixtures/resume-without-ts-cucumber.md');
+      fs.writeFileSync(
+        resumeFixturePath,
+        '# Test Candidate\n\n## Technical Skills\n- **Languages:** Java, Python\n- **Automation:** Selenium WebDriver, REST Assured\n',
+        'utf-8'
+      );
+
+      try {
+        const jdWithTsAndCucumber: JobPosting = {
+          ...sampleJob,
+          title: 'Senior SDET',
+          description: 'Looking for strong TypeScript and Cucumber (BDD) automation skills along with Selenium and REST Assured.',
+          skills: ['TypeScript', 'Cucumber (BDD)', 'Selenium', 'REST Assured'],
+        };
+
+        const result = tailor.tailorResume(resumeFixturePath, jdWithTsAndCucumber, validProfile, {
+          allowFillForDemo: true,
+        });
+
+        // Technical Skills section diff header
+        expect(result.diffSummary).toContain('## Technical Skills');
+
+        // Missing keywords (absent from base resume)
+        expect(result.missingKeywords).toContain('TypeScript');
+        expect(result.missingKeywords.some((k) => k.toLowerCase().includes('cucumber'))).toBe(true);
+
+        // Matched keywords (present in base resume)
+        expect(result.matchedKeywords).toContain('Selenium');
+        expect(result.matchedKeywords).toContain('REST Assured');
+      } finally {
+        if (fs.existsSync(resumeFixturePath)) fs.unlinkSync(resumeFixturePath);
+      }
+    });
+
+    it('blocks tailoring in real mode when base resume or profile has [FILL] markers', () => {
+      expect(() => {
+        tailor.tailorResume('./config/base-resume.md', sampleJob, validProfile, {
+          allowFillForDemo: false,
+        });
+      }).toThrow(/unresolved \[FILL\] markers/);
+    });
+
+    it('does not report API Testing or CI/CD Integration as missing when resume has REST Assured/Postman and Jenkins/GitHub Actions', () => {
+      const hackerRankJob: JobPosting = {
+        ...sampleJob,
+        title: 'Software Development Engineer in Test II',
+        company: 'HackerRank',
+        description: 'Looking for SDET with Java, Playwright, Selenium, REST Assured, Jenkins, Docker, Postman, API Testing, and CI/CD pipelines.',
+        skills: ['Java', 'Playwright', 'Selenium', 'REST Assured', 'Jenkins', 'Postman', 'Docker', 'API Testing', 'CI/CD Integration'],
+      };
+
+      const result = tailor.tailorResume('./config/base-resume.md', hackerRankJob, validProfile, {
+        allowFillForDemo: true,
+      });
+
+      // API Testing and CI/CD Integration must be matched via synonyms (REST Assured/Postman and Jenkins/GitHub Actions)
+      expect(result.matchedKeywords).toContain('API Testing');
+      expect(result.matchedKeywords).toContain('CI/CD Integration');
+      expect(result.missingKeywords).not.toContain('API Testing');
+      expect(result.missingKeywords).not.toContain('CI/CD Integration');
+    });
   });
 
   // ─── 5. Follow-Up Cadence & Limits (Item 6) ──────────────────
