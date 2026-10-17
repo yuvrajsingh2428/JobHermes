@@ -156,11 +156,36 @@ export class HermesAgent {
         });
       }
 
-      // 4. Store in SQLite DB
+      // 4. Store in SQLite DB (both qualified >= 60 and near-misses 40-59)
       for (const job of qualified) {
-        const id = this.storage.upsertJob(job);
+        const id = this.storage.upsertJob({ ...job, nearMiss: false });
         if (job.score !== undefined && job.scoreBreakdown) {
           this.storage.updateJobScore(id, job.score, job.scoreBreakdown);
+        }
+      }
+      for (const job of nearMisses) {
+        const id = this.storage.upsertJob({ ...job, nearMiss: true });
+        if (job.score !== undefined && job.scoreBreakdown) {
+          this.storage.updateJobScore(id, job.score, job.scoreBreakdown);
+        }
+      }
+
+      // Update stale/closed job sightings for all enabled target companies
+      const rawJobUrlsByCompany = new Map<string, Set<string>>();
+      for (const t of enabledTargets) {
+        rawJobUrlsByCompany.set(t.name, new Set());
+      }
+      for (const j of rawJobs) {
+        if (!rawJobUrlsByCompany.has(j.company)) {
+          rawJobUrlsByCompany.set(j.company, new Set());
+        }
+        rawJobUrlsByCompany.get(j.company)!.add(j.url);
+      }
+
+      for (const [compName, urlSet] of rawJobUrlsByCompany.entries()) {
+        const sightings = this.storage.recordJobSightings(compName, urlSet);
+        if (sightings.newlyClosed.length > 0) {
+          logger.info(`Closed ${sightings.newlyClosed.length} stale jobs for ${compName} absent for 2 consecutive scans.`);
         }
       }
 

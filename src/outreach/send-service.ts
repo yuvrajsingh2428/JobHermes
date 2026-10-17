@@ -6,7 +6,7 @@ import fs from 'fs';
 import path from 'path';
 import nodemailer from 'nodemailer';
 import { StorageService } from '../storage/database';
-import { OutreachRecord, ContactRecord, CandidateProfile } from '../types';
+import { OutreachRecord, ContactRecord, CandidateProfile, hasFillMarkers } from '../types';
 import { isWithinSendWindow } from '../contacts/contact-service';
 import { logger } from '../utils/logger';
 
@@ -17,15 +17,32 @@ export interface SendResult {
   error?: string;
 }
 
+export interface CanSendOptions {
+  bypassTimezone?: boolean;
+  allowDemo?: boolean;
+  now?: Date;
+  profile?: CandidateProfile;
+  baseResumePath?: string;
+  fromAddress?: string;
+}
+
 export class SendService {
   private storage: StorageService;
   private maxDailySends: number;
   private dryRun: boolean;
 
-  constructor(storage: StorageService, maxDailySends = 20) {
+  constructor(storage: StorageService, maxDailySends = 20, isDryRun?: boolean) {
     this.storage = storage;
     this.maxDailySends = parseInt(process.env.MAX_DAILY_SENDS || String(maxDailySends), 10);
-    this.dryRun = process.env.SEND_REAL_EMAILS !== 'true';
+    this.dryRun = isDryRun !== undefined ? isDryRun : process.env.SEND_REAL_EMAILS !== 'true';
+  }
+
+  setDryRun(val: boolean): void {
+    this.dryRun = val;
+  }
+
+  isDryRunMode(): boolean {
+    return this.dryRun;
   }
 
   /**
@@ -34,7 +51,7 @@ export class SendService {
   canSend(
     outreach: OutreachRecord,
     contact: ContactRecord,
-    options?: { bypassTimezone?: boolean; allowDemo?: boolean }
+    options?: CanSendOptions
   ): { allowed: boolean; reason?: string } {
     // 1. Strict approval gate
     if (outreach.status !== 'approved') {
@@ -83,11 +100,56 @@ export class SendService {
       return { allowed: false, reason: `Bounce circuit breaker triggered: bounce rate is ${(bounceStats.bounceRate * 100).toFixed(1)}% (>10%). Sending paused.` };
     }
 
-    // 7. Recipient timezone business hours send window
+    // 7. Recipient timezone business hours send window (ENFORCED IN BOTH DRY-RUN AND REAL MODE)
     if (!options?.bypassTimezone) {
-      const windowCheck = isWithinSendWindow(contact.timezone || 'Asia/Kolkata');
+      const checkDate = options?.now || new Date();
+      const windowCheck = isWithinSendWindow(contact.timezone || 'Asia/Kolkata', checkDate);
       if (!windowCheck.allowed) {
         return { allowed: false, reason: windowCheck.reason || 'Outside business hours in recipient timezone' };
+      }
+    }
+
+    // 8. Real-mode [FILL] marker safeguards: refuse if any [FILL] markers remain
+    if (!this.dryRun) {
+      if (options?.profile) {
+        const fillCheck = hasFillMarkers(options.profile);
+        if (fillCheck.hasFill) {
+          return {
+            allowed: false,
+            reason: `Refusing real send: candidate profile contains unresolved [FILL] markers (${fillCheck.markerPaths.slice(0, 3).join(', ')}).`,
+          };
+        }
+
+        const senderEmail = options.fromAddress || options.profile.email || process.env.SMTP_USER || '';
+        if (!senderEmail || senderEmail.includes('[FILL') || !senderEmail.includes('@')) {
+          return {
+            allowed: false,
+            reason: `Refusing real send: unresolved [FILL] marker or invalid sender (From) configuration: "${senderEmail}".`,
+          };
+        }
+
+        if (options.profile.name && options.profile.name.includes('[FILL')) {
+          return {
+            allowed: false,
+            reason: `Refusing real send: candidate name in profile contains unresolved [FILL] markers.`,
+          };
+        }
+      }
+
+      const resumePath = path.resolve(options?.baseResumePath || './config/base-resume.md');
+      if (fs.existsSync(resumePath)) {
+        const resumeContent = fs.readFileSync(resumePath, 'utf-8');
+        if (resumeContent.includes('[FILL')) {
+          return {
+            allowed: false,
+            reason: `Refusing real send: base resume (${resumePath}) contains unresolved [FILL] markers.`,
+          };
+        }
+      }
+    } else {
+      // In dry-run mode, warn if [FILL] markers exist
+      if (options?.profile && hasFillMarkers(options.profile).hasFill) {
+        logger.warn('Dry-run warning: Candidate profile contains unresolved [FILL] markers (allowed in dry-run mode only).');
       }
     }
 
@@ -100,7 +162,7 @@ export class SendService {
   async sendOutreach(
     outreachId: number,
     profile: CandidateProfile,
-    options?: { bypassTimezone?: boolean; mockSmtp?: boolean; allowDemo?: boolean }
+    options?: CanSendOptions & { mockSmtp?: boolean }
   ): Promise<SendResult> {
     const outreach = this.storage.getOutreachById(outreachId);
     if (!outreach) {
@@ -112,7 +174,7 @@ export class SendService {
       return { success: false, outreachId, error: `Contact #${outreach.contactId} not found` };
     }
 
-    const check = this.canSend(outreach, contact, options);
+    const check = this.canSend(outreach, contact, { ...options, profile });
     if (!check.allowed) {
       logger.warn(`Send blocked for Outreach #${outreachId}: ${check.reason}`);
       return { success: false, outreachId, error: check.reason };

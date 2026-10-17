@@ -25,6 +25,11 @@
     "contacts": "ts-node src/index.ts contacts",
     "application": "ts-node src/index.ts application",
     "outreach": "ts-node src/index.ts outreach",
+    "dashboard": "ts-node src/index.ts --dashboard",
+    "digest": "ts-node src/index.ts digest",
+    "export": "ts-node src/index.ts export",
+    "backup": "ts-node src/index.ts backup",
+    "rescore": "ts-node src/index.ts rescore",
     "seed-demo": "ts-node -e \"import { seedDemoSandbox } from './src/utils/demo-sandbox'; seedDemoSandbox();\"",
     "push-staging": "node scripts/push-staging.js"
   },

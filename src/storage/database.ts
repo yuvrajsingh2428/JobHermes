@@ -16,6 +16,7 @@ import {
   SuppressionRecord,
   OutreachRecord,
   OutreachStatus,
+  OutreachOutcome,
 } from '../types';
 import { runMigrations } from './migrations';
 import { logger } from '../utils/logger';
@@ -47,11 +48,11 @@ export class StorageService {
       INSERT INTO jobs (
         title, company, location, is_remote, url, description, salary, job_type,
         experience_required, skills, posted_at, scraped_at, source,
-        status, score, score_breakdown, stretch, reasons, is_applied, applied_at, notes, external_id
+        status, score, score_breakdown, stretch, reasons, is_applied, applied_at, notes, external_id, near_miss
       ) VALUES (
         @title, @company, @location, @isRemote, @url, @description, @salary, @jobType,
         @experienceRequired, @skills, @postedAt, @scrapedAt, @source,
-        @status, @score, @scoreBreakdown, @stretch, @reasons, @isApplied, @appliedAt, @notes, @externalId
+        @status, @score, @scoreBreakdown, @stretch, @reasons, @isApplied, @appliedAt, @notes, @externalId, @nearMiss
       )
       ON CONFLICT(url) DO UPDATE SET
         title            = excluded.title,
@@ -63,6 +64,9 @@ export class StorageService {
         score_breakdown  = excluded.score_breakdown,
         stretch          = excluded.stretch,
         reasons          = excluded.reasons,
+        near_miss        = excluded.near_miss,
+        consecutive_missed_scans = 0,
+        status           = CASE WHEN status = 'closed' THEN 'new' ELSE status END,
         updated_at       = datetime('now')
     `);
 
@@ -89,17 +93,19 @@ export class StorageService {
       appliedAt: job.appliedAt || null,
       notes: job.notes || null,
       externalId: job.externalId || null,
+      nearMiss: job.nearMiss ? 1 : 0,
     });
 
     return Number(result.lastInsertRowid) || this.getJobByUrl(job.url)?.id || 0;
   }
 
   updateJobScore(id: number, score: number, breakdown: ScoreBreakdown): void {
+    const isNearMiss = score >= 40 && score < 60 ? 1 : 0;
     this.db
       .prepare(
-        `UPDATE jobs SET score = ?, score_breakdown = ?, stretch = ?, reasons = ?, updated_at = datetime('now') WHERE id = ?`
+        `UPDATE jobs SET score = ?, score_breakdown = ?, stretch = ?, reasons = ?, near_miss = ?, updated_at = datetime('now') WHERE id = ?`
       )
-      .run(score, JSON.stringify(breakdown), breakdown.stretch ? 1 : 0, JSON.stringify(breakdown.reasons), id);
+      .run(score, JSON.stringify(breakdown), breakdown.stretch ? 1 : 0, JSON.stringify(breakdown.reasons), isNearMiss, id);
   }
 
   updateJobStatus(id: number, status: ApplicationStatus, notes?: string): void {
@@ -108,6 +114,14 @@ export class StorageService {
         `UPDATE jobs SET status = ?, notes = COALESCE(?, notes), updated_at = datetime('now') WHERE id = ?`
       )
       .run(status, notes || null, id);
+  }
+
+  resetApplicationStatus(id: number, status: ApplicationStatus = 'new'): void {
+    this.db
+      .prepare(
+        `UPDATE jobs SET is_applied = 0, applied_at = NULL, status = ?, updated_at = datetime('now') WHERE id = ?`
+      )
+      .run(status, id);
   }
 
   markApplied(id: number, appliedAt: string): void {
@@ -132,7 +146,7 @@ export class StorageService {
     const rows = this.db
       .prepare(
         `SELECT * FROM jobs
-         WHERE score >= ? AND status NOT IN ('skipped', 'rejected')
+         WHERE score >= ? AND status NOT IN ('skipped', 'rejected', 'closed')
          ORDER BY score DESC
          LIMIT ?`
       )
@@ -143,15 +157,38 @@ export class StorageService {
   getAllJobs(filters?: {
     status?: ApplicationStatus;
     minScore?: number;
+    maxScore?: number;
+    nearMisses?: boolean;
+    stretch?: boolean;
     company?: string;
+    search?: string;
     limit?: number;
+    includeClosed?: boolean;
   }): JobPosting[] {
     let query = 'SELECT * FROM jobs WHERE 1=1';
     const params: unknown[] = [];
 
-    if (filters?.status) { query += ' AND status = ?'; params.push(filters.status); }
-    if (filters?.minScore !== undefined) { query += ' AND score >= ?'; params.push(filters.minScore); }
+    if (filters?.status) {
+      query += ' AND status = ?';
+      params.push(filters.status);
+    } else if (!filters?.includeClosed) {
+      query += " AND status != 'closed'";
+    }
+    if (filters?.nearMisses) {
+      query += ' AND (near_miss = 1 OR (score >= 40 AND score < 60))';
+    } else {
+      if (filters?.minScore !== undefined) { query += ' AND score >= ?'; params.push(filters.minScore); }
+      if (filters?.maxScore !== undefined) { query += ' AND score <= ?'; params.push(filters.maxScore); }
+    }
+    if (filters?.stretch !== undefined) {
+      query += ' AND stretch = ?';
+      params.push(filters.stretch ? 1 : 0);
+    }
     if (filters?.company) { query += ' AND company LIKE ?'; params.push(`%${filters.company}%`); }
+    if (filters?.search) {
+      query += ' AND (title LIKE ? OR company LIKE ? OR description LIKE ?)';
+      params.push(`%${filters.search}%`, `%${filters.search}%`, `%${filters.search}%`);
+    }
 
     query += ' ORDER BY score DESC, scraped_at DESC';
 
@@ -159,6 +196,53 @@ export class StorageService {
 
     const rows = this.db.prepare(query).all(...params) as Record<string, unknown>[];
     return rows.map((r) => this.rowToJob(r));
+  }
+
+  recordJobSightings(scannedCompany: string, seenUrls: Set<string>): { newlyClosed: number[]; activeCount: number } {
+    const existing = this.db.prepare(
+      `SELECT id, url, consecutive_missed_scans, status FROM jobs WHERE company = ? AND status != 'closed'`
+    ).all(scannedCompany) as { id: number; url: string; consecutive_missed_scans: number; status: string }[];
+
+    const newlyClosed: number[] = [];
+
+    for (const job of existing) {
+      if (seenUrls.has(job.url)) {
+        this.db.prepare(
+          `UPDATE jobs SET consecutive_missed_scans = 0, updated_at = datetime('now') WHERE id = ?`
+        ).run(job.id);
+      } else {
+        const missed = (job.consecutive_missed_scans || 0) + 1;
+        if (missed >= 2) {
+          this.db.prepare(
+            `UPDATE jobs SET consecutive_missed_scans = ?, status = 'closed', updated_at = datetime('now') WHERE id = ?`
+          ).run(missed, job.id);
+          newlyClosed.push(job.id);
+          logger.warn(`Job #${job.id} absent from ${scannedCompany} for 2 consecutive scans. Marked status 'closed'.`);
+        } else {
+          this.db.prepare(
+            `UPDATE jobs SET consecutive_missed_scans = ?, updated_at = datetime('now') WHERE id = ?`
+          ).run(missed, job.id);
+        }
+      }
+    }
+
+    return { newlyClosed, activeCount: existing.length - newlyClosed.length };
+  }
+
+  deleteJob(id: number): boolean {
+    return this.db.prepare('DELETE FROM jobs WHERE id = ?').run(id).changes > 0;
+  }
+
+  deleteSignal(id: number): boolean {
+    return this.db.prepare('DELETE FROM signals WHERE id = ?').run(id).changes > 0;
+  }
+
+  deleteContact(id: number): boolean {
+    return this.db.prepare('DELETE FROM contacts WHERE id = ?').run(id).changes > 0;
+  }
+
+  deleteOutreach(id: number): boolean {
+    return this.db.prepare('DELETE FROM outreach WHERE id = ?').run(id).changes > 0;
   }
 
   countJobs(since?: string): number {
@@ -322,6 +406,10 @@ export class StorageService {
     this.db.prepare('UPDATE contacts SET email = ?, email_status = ? WHERE id = ?').run(email, status, id);
   }
 
+  updateContactEmailStatus(id: number, status: string): void {
+    this.db.prepare('UPDATE contacts SET email_status = ? WHERE id = ?').run(status, id);
+  }
+
   verifyContact(id: number): void {
     this.db.prepare("UPDATE contacts SET email_status = 'verified' WHERE id = ?").run(id);
   }
@@ -333,6 +421,26 @@ export class StorageService {
       .prepare(`INSERT INTO signals (company_id, signal_type, detail, url, source) VALUES (?, ?, ?, ?, ?)`)
       .run(signal.companyId, signal.signalType, signal.detail, signal.url || null, signal.source || 'manual');
     return Number(result.lastInsertRowid);
+  }
+
+  getSignals(companyId?: number): SignalRecord[] {
+    let query = 'SELECT * FROM signals';
+    const params: unknown[] = [];
+    if (companyId) {
+      query += ' WHERE company_id = ?';
+      params.push(companyId);
+    }
+    query += ' ORDER BY seen_at DESC';
+    const rows = this.db.prepare(query).all(...params) as Record<string, unknown>[];
+    return rows.map((r) => ({
+      id: r['id'] as number,
+      companyId: r['company_id'] as number,
+      signalType: r['signal_type'] as any,
+      detail: r['detail'] as string,
+      url: r['url'] as string | undefined,
+      source: (r['source'] as string) || 'manual',
+      seenAt: r['seen_at'] as string,
+    }));
   }
 
   getSignalsForCompany(companyId: number, options?: { excludeDemo?: boolean }): SignalRecord[] {
@@ -368,7 +476,7 @@ export class StorageService {
 
   addToSuppressionList(email: string, reason: string): void {
     this.db
-      .prepare('INSERT OR REPLACE INTO suppression_list (email, reason, added_at) VALUES (?, ?, datetime("now"))')
+      .prepare("INSERT OR REPLACE INTO suppression_list (email, reason, added_at) VALUES (?, ?, datetime('now'))")
       .run(email.toLowerCase().trim(), reason);
   }
 
@@ -497,6 +605,13 @@ export class StorageService {
     this.db.prepare("UPDATE outreach SET subject = ?, body = ?, status = 'draft' WHERE id = ?").run(subject, body, id);
   }
 
+  recordOutreachReply(id: number, outcome: OutreachOutcome = 'positive', replyAt?: string): void {
+    const at = replyAt || new Date().toISOString();
+    this.db
+      .prepare("UPDATE outreach SET status = 'replied', reply_at = ?, outcome = ? WHERE id = ?")
+      .run(at, outcome, id);
+  }
+
   getDailySentCount(dateStr?: string): number {
     const day = dateStr || new Date().toISOString().slice(0, 10);
     const row = this.db
@@ -555,6 +670,8 @@ export class StorageService {
       appliedAt: row['applied_at'] as string | undefined,
       notes: row['notes'] as string | undefined,
       externalId: row['external_id'] as string | undefined,
+      nearMiss: Boolean(row['near_miss'] ?? (row['score'] !== undefined && Number(row['score']) >= 40 && Number(row['score']) < 60)),
+      consecutiveMissedScans: Number(row['consecutive_missed_scans'] ?? 0),
     };
   }
 
