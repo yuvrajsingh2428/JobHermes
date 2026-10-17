@@ -3,8 +3,12 @@
 // ============================================================
 
 import { describe, it, expect } from 'vitest';
+import path from 'path';
+import fs from 'fs';
 import { scoringService } from '../../src/scoring/scorer';
 import { CandidateProfile, RawJob } from '../../src/types';
+import { StorageService } from '../../src/storage/database';
+import { rescoreAllJobs } from '../../src/scoring/rescore';
 
 const mockProfile: CandidateProfile = {
   name: 'Test SDET Candidate',
@@ -129,5 +133,115 @@ describe('SDET Scorer Unit Tests', () => {
     const breakdown = scoringService.scoreJob(job, mockProfile);
     expect(breakdown.experienceFit).toBe(10);
     expect(breakdown.stretch).toBe(false);
+  });
+
+  it('changes score when a company signal is deleted followed by rescore', () => {
+    const testDbPath = path.resolve(__dirname, '../fixtures/test-rescore.db');
+    if (fs.existsSync(testDbPath)) {
+      try { fs.unlinkSync(testDbPath); } catch {}
+    }
+    const storage = new StorageService(testDbPath);
+
+    const companyId = storage.upsertCompany({
+      name: 'RescoreTech',
+      domain: 'rescoretech.io',
+      sizeBucket: 'mid',
+      ats: 'greenhouse',
+    });
+
+    const signalId = storage.addSignal({
+      companyId,
+      signalType: 'funding',
+      detail: 'Series B $30M',
+      url: 'https://news.com/rescoretech-series-b',
+      source: 'news',
+    });
+
+    storage.upsertJob({
+      title: 'SDET Automation Engineer',
+      company: 'RescoreTech',
+      location: 'Delhi NCR',
+      isRemote: true,
+      url: 'https://rescoretech.io/jobs/sdet',
+      description: 'Java, Selenium, TestNG, REST Assured, Jenkins with 2 years experience',
+      source: 'greenhouse',
+      scrapedAt: new Date().toISOString(),
+      postedAt: new Date().toISOString(),
+    });
+
+    // Initial rescore with signal present
+    const res1 = rescoreAllJobs(storage, mockProfile);
+    expect(res1[0].newScore).toBeGreaterThanOrEqual(80);
+    expect(res1[0].breakdown.hiringSignal).toBe(10);
+    const scoreWithSignal = res1[0].newScore;
+
+    // Delete signal
+    storage.deleteSignal(signalId);
+
+    // Rescore again
+    const res2 = rescoreAllJobs(storage, mockProfile);
+    expect(res2[0].breakdown.hiringSignal).toBe(0);
+    expect(res2[0].newScore).toBe(scoreWithSignal - 10);
+
+    storage.close();
+    if (fs.existsSync(testDbPath)) {
+      try { fs.unlinkSync(testDbPath); } catch {}
+    }
+  });
+
+  it('marks job status as closed after 2 consecutive missed scans and excludes from top jobs', () => {
+    const testDbPath = path.resolve(__dirname, '../fixtures/test-stale-job.db');
+    if (fs.existsSync(testDbPath)) fs.unlinkSync(testDbPath);
+
+    const storage = new StorageService(testDbPath);
+    const jobId = storage.upsertJob({
+      title: 'Senior SDET',
+      company: 'HackerRank',
+      location: 'Remote',
+      isRemote: true,
+      url: 'https://job-boards.greenhouse.io/hackerrank/jobs/8155938',
+      description: 'Playwright, TypeScript, CI/CD',
+      source: 'greenhouse',
+      scrapedAt: new Date().toISOString(),
+      score: 82,
+      status: 'new',
+      isApplied: false,
+    });
+
+    // Verify initial active state in top jobs
+    let topJobs = storage.getTopJobs(10);
+    expect(topJobs.some((j) => j.id === jobId)).toBe(true);
+
+    // Scan 1: job is absent from newly scraped URLs for HackerRank
+    const seenUrlsScan1 = new Set<string>(['https://job-boards.greenhouse.io/hackerrank/jobs/9999999']);
+    const sighting1 = storage.recordJobSightings('HackerRank', seenUrlsScan1);
+    expect(sighting1.newlyClosed.length).toBe(0);
+
+    let jobState1 = storage.getJobById(jobId);
+    expect(jobState1?.status).toBe('new');
+    expect(jobState1?.consecutiveMissedScans).toBe(1);
+    expect(storage.getTopJobs(10).some((j) => j.id === jobId)).toBe(true);
+
+    // Scan 2: job is absent again for second consecutive scan
+    const seenUrlsScan2 = new Set<string>(['https://job-boards.greenhouse.io/hackerrank/jobs/9999999']);
+    const sighting2 = storage.recordJobSightings('HackerRank', seenUrlsScan2);
+    expect(sighting2.newlyClosed).toContain(jobId);
+
+    let jobState2 = storage.getJobById(jobId);
+    expect(jobState2?.status).toBe('closed');
+    expect(jobState2?.consecutiveMissedScans).toBe(2);
+
+    // Excluded from top jobs
+    topJobs = storage.getTopJobs(10);
+    expect(topJobs.some((j) => j.id === jobId)).toBe(false);
+
+    // Excluded from default getAllJobs()
+    const activeJobs = storage.getAllJobs();
+    expect(activeJobs.some((j) => j.id === jobId)).toBe(false);
+
+    storage.close();
+    if (fs.existsSync(testDbPath)) {
+      try { fs.unlinkSync(testDbPath); } catch {}
+    }
   });
 });

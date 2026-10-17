@@ -65,7 +65,8 @@ export type ApplicationStatus =
   | 'rejected'
   | 'offered'
   | 'accepted'
-  | 'skipped';
+  | 'skipped'
+  | 'closed';
 
 export interface ScoreBreakdown {
   titleMatch: number;      // 0-25
@@ -97,6 +98,8 @@ export interface JobPosting extends RawJob {
   jobType?: string;
   skills?: string[];
   experienceRequired?: string;
+  nearMiss?: boolean;
+  consecutiveMissedScans?: number;
 }
 
 // ─── Candidate Profile Schema ────────────────────────────────
