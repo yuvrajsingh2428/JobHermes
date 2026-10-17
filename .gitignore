@@ -12,6 +12,8 @@ data/cache/
 .cache/
 logs/
 output/
+output/eml/
+*.eml
 *.db
 *.db-shm
 *.db-wal

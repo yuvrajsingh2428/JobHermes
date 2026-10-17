@@ -47,13 +47,24 @@ export class ResumeTailor {
       }
     }
 
-    const matchedKeywords = job.scoreBreakdown?.matchedSkills || [];
-    const missingKeywords = job.scoreBreakdown?.missingSkills || [];
+    let matchedKeywords = job.scoreBreakdown?.matchedSkills || [];
+    let missingKeywords = job.scoreBreakdown?.missingSkills || [];
+
+    if (matchedKeywords.length === 0 && job.skills && job.skills.length > 0) {
+      const candidateSkills = Object.values(profile.skills).flat();
+      matchedKeywords = job.skills.filter((js) =>
+        candidateSkills.some((cs) => cs.toLowerCase() === js.toLowerCase())
+      );
+      missingKeywords = job.skills.filter(
+        (js) => !candidateSkills.some((cs) => cs.toLowerCase() === js.toLowerCase())
+      );
+    }
 
     // Parse sections and reorder bullet points based on matched keywords
     const lines = baseContent.split(/\r?\n/);
     const outputLines: string[] = [];
     const bulletBuffer: string[] = [];
+    const reorderedDiff: string[] = [];
 
     const flushBullets = () => {
       if (bulletBuffer.length === 0) return;
@@ -68,8 +79,17 @@ export class ResumeTailor {
       });
 
       // Sort descending by relevance
-      scoredBullets.sort((a, b) => b.score - a.score);
-      scoredBullets.forEach((item) => outputLines.push(item.text));
+      const sorted = [...scoredBullets].sort((a, b) => b.score - a.score);
+      const isReordered = sorted.some((item, idx) => item.text !== bulletBuffer[idx]);
+      if (isReordered) {
+        reorderedDiff.push(`[Section Bullet Reordering for "${job.title}"]`);
+        sorted.forEach((item, idx) => {
+          if (item.score > 0) {
+            reorderedDiff.push(`  + (Rank #${idx + 1}, matches ${item.score} kw): ${item.text.trim()}`);
+          }
+        });
+      }
+      sorted.forEach((item) => outputLines.push(item.text));
       bulletBuffer.length = 0;
     };
 
@@ -88,9 +108,11 @@ export class ResumeTailor {
     // Build diff summary
     const diffSummary = [
       `### Tailoring Summary for ${job.title} @ ${job.company}`,
-      `• Matched Keywords Highlighted: ${matchedKeywords.join(', ') || 'None'}`,
-      `• Missing Keywords Gap: ${missingKeywords.join(', ') || 'None'}`,
-      `• Bullet points prioritized to highlight automation frameworks and CI/CD tools.`,
+      `• Matched Keywords (${matchedKeywords.length}): ${matchedKeywords.join(', ') || 'None'}`,
+      `• Missing Keywords Gap (${missingKeywords.length}): ${missingKeywords.join(', ') || 'None'}`,
+      reorderedDiff.length > 0
+        ? `\nDiff against base-resume.md:\n${reorderedDiff.join('\n')}`
+        : '• Bullets already in optimal priority matching target stack.',
     ].join('\n');
 
     let outputPath: string | undefined;

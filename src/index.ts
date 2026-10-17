@@ -11,9 +11,10 @@ import { runDoctor } from './utils/doctor';
 import { hasFillMarkers, SignalType, CandidateProfile } from './types';
 import { StorageService } from './storage/database';
 import { ContactService } from './contacts/contact-service';
-import { DraftGenerator } from './outreach/draft-generator';
+import { DraftGenerator, lintOutreachDraft } from './outreach/draft-generator';
 import { SendService } from './outreach/send-service';
 import { ResumeTailor } from './outreach/resume-tailor';
+import { FollowUpService } from './outreach/follow-up-service';
 import { seedDemoSandbox, getDemoDbPath } from './utils/demo-sandbox';
 import { readJsonFile } from './utils/helpers';
 
@@ -326,10 +327,12 @@ async function main(): Promise<void> {
       } else {
         drafts.forEach((d) => {
           const contact = storage.getContactById(d.contactId);
+          const lint = lintOutreachDraft(d.subject, d.body);
+          const lintTag = lint.valid ? '✅ [LINT: PASS]' : `⚠️ [LINT WARN: ${lint.warnings.join('; ')}]`;
           logger.info(
-            `  • #${d.id} [${d.status.toUpperCase()}] Var ${d.variant || 'A'} | To: ${contact?.fullName || 'Contact ' + d.contactId} (${contact?.email || 'no email'})`
+            `  • #${d.id} [${d.status.toUpperCase()}] Var ${d.variant || 'A'} | To: ${contact?.fullName || 'Contact ' + d.contactId} (${contact?.email || 'no email'}) | ${lintTag}`
           );
-          logger.info(`     Subject: ${d.subject}`);
+          logger.info(`     Subject: "${d.subject}" (${lint.subjectWordCount} words) | Body: ${lint.wordCount} words`);
           if (d.sentAt) logger.info(`     Sent: ${d.sentAt}`);
           if (d.error) logger.warn(`     Error: ${d.error}`);
         });
@@ -367,8 +370,9 @@ async function main(): Promise<void> {
         logger.error('Usage: npm run outreach send <id>');
         process.exit(1);
       }
+      const bypassTz = args.includes('--bypass-window') || args.includes('--force');
       const profile = readJsonFile<CandidateProfile>('./config/candidate-profile.json');
-      const res = await sendService.sendOutreach(id, profile, { bypassTimezone: isDemo, allowDemo: isDemo });
+      const res = await sendService.sendOutreach(id, profile, { bypassTimezone: bypassTz, allowDemo: isDemo });
       if (res.success) {
         logger.success(`Outreach #${id} sent successfully!${res.emlPath ? ` (Dry-run file: ${res.emlPath})` : ''}`);
       } else {
@@ -401,7 +405,38 @@ async function main(): Promise<void> {
       return;
     }
 
-    logger.error('Unknown outreach command. Use: outreach list | outreach approve <id> | outreach edit <id> | outreach send <id> | outreach tailor <jobId>');
+    if (sub === 'followups' || sub === 'check-followups') {
+      const profile = readJsonFile<CandidateProfile>('./config/candidate-profile.json');
+      const followUpService = new FollowUpService(storage);
+      const evals = followUpService.checkAndCreateFollowUps(profile);
+      logger.section('Follow-Up Cadence Review');
+      if (evals.length === 0) {
+        logger.info('No sent outreach emails found to evaluate.');
+      } else {
+        evals.forEach((e) => {
+          if (e.eligible) {
+            logger.success(`Created follow-up draft #${e.createdFollowUpId} for ${e.recipientEmail} (Contact #${e.contactId})`);
+          } else {
+            logger.info(`Skipped Outreach #${e.outreachId} (${e.recipientEmail}): ${e.reason}`);
+          }
+        });
+      }
+      return;
+    }
+
+    if (sub === 'reply') {
+      const id = parseInt(args[2], 10);
+      const outcome = (args[3] as any) || 'positive';
+      if (!id) {
+        logger.error('Usage: npm run outreach reply <outreach-id> [positive|negative|interview|referral]');
+        process.exit(1);
+      }
+      const followUpService = new FollowUpService(storage);
+      followUpService.recordReply(id, outcome);
+      return;
+    }
+
+    logger.error('Unknown outreach command. Use: outreach list | outreach approve <id> | outreach edit <id> | outreach send <id> | outreach tailor <jobId> | outreach followups | outreach reply <id>');
     process.exit(1);
   }
 

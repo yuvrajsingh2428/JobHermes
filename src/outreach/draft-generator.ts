@@ -5,22 +5,126 @@
 import { CandidateProfile, ContactRecord, JobPosting, CompanyRecord, SignalRecord, hasFillMarkers } from '../types';
 import { logger } from '../utils/logger';
 
+export interface DraftLintResult {
+  valid: boolean;
+  warnings: string[];
+  wordCount: number;
+  subjectWordCount: number;
+  hasFluff: boolean;
+  fluffMatches: string[];
+  hasProofPoint: boolean;
+  hasSingleAsk: boolean;
+  hasOptOut: boolean;
+}
+
 export interface GeneratedOutreachPack {
   variantA: {
     subject: string;
     body: string;
+    lint: DraftLintResult;
   };
   variantB: {
     subject: string;
     body: string;
+    lint: DraftLintResult;
   };
   linkedInDm: string;
+  linkedInWordCount: number;
   citedFacts: string[];
+}
+
+export const FLUFF_PATTERNS = [
+  /\bhope this (?:email|message) finds you well\b/i,
+  /\bhope you(?:'re| are) doing well\b/i,
+  /\bwriting to express my interest\b/i,
+  /\bthrilled to apply\b/i,
+  /\bpassionate about\b/i,
+  /\bsynergy\b/i,
+  /\bhit the ground running\b/i,
+  /\bself-starter\b/i,
+  /\bteam player\b/i,
+  /\bdynamic\b/i,
+  /\bgive 110%\b/i,
+  /\btouching base\b/i,
+  /\bthought leader\b/i,
+  /\bgo-getter\b/i,
+];
+
+/**
+ * Validates a cold outreach draft against strict quality rules:
+ * - Subject under 8 words (< 8 words)
+ * - Body 80-120 words
+ * - Zero fluff phrases
+ * - At least one concrete metric / proof point
+ * - Exactly one call-to-action ask (?)
+ * - Polite opt-out line
+ */
+export function lintOutreachDraft(subject: string, body: string): DraftLintResult {
+  const warnings: string[] = [];
+
+  const subjectWords = subject.trim().split(/\s+/).filter(Boolean);
+  const subjectWordCount = subjectWords.length;
+  if (subjectWordCount >= 8) {
+    warnings.push(`Subject exceeds 7 words (${subjectWordCount} words; must be under 8 words)`);
+  }
+
+  const words = body.trim().split(/\s+/).filter(Boolean);
+  const wordCount = words.length;
+  if (wordCount < 80) {
+    warnings.push(`Draft body is under 80 words (${wordCount} words; target is 80-120)`);
+  } else if (wordCount > 120) {
+    warnings.push(`Draft body exceeds 120 words (${wordCount} words; target is 80-120)`);
+  }
+
+  // Fluff detection
+  const fluffMatches: string[] = [];
+  for (const pattern of FLUFF_PATTERNS) {
+    const match = body.match(pattern);
+    if (match) fluffMatches.push(match[0]);
+  }
+  if (fluffMatches.length > 0) {
+    warnings.push(`Fluff phrase detected: "${fluffMatches.join('", "')}"`);
+  }
+
+  // Proof point check (numbers, percentages, metrics)
+  const proofPattern = /(\b\d+%\b|\b\d+\s*x\b|\breduc(?:ed|ing)\b|\barchitected\b|\bincreased\b|\bcut\b|\bfrom \d+ to \d+\b|\b\d+ years\b)/i;
+  const hasProofPoint = proofPattern.test(body);
+  if (!hasProofPoint) {
+    warnings.push('Missing concrete proof point or quantitative achievement');
+  }
+
+  // Exactly one call-to-action ask
+  const questionMarks = (body.match(/\?/g) || []).length;
+  const hasSingleAsk = questionMarks === 1;
+  if (questionMarks === 0) {
+    warnings.push('Missing call-to-action ask (?)');
+  } else if (questionMarks > 1) {
+    warnings.push(`Found ${questionMarks} questions (must have exactly one clear ask)`);
+  }
+
+  // Opt-out line check
+  const optOutPattern = /(no worries|won't follow up|not hiring|wrong person|feel free to ignore)/i;
+  const hasOptOut = optOutPattern.test(body);
+  if (!hasOptOut) {
+    warnings.push('Missing polite opt-out line (e.g. in P.S.)');
+  }
+
+  return {
+    valid: warnings.length === 0,
+    warnings,
+    wordCount,
+    subjectWordCount,
+    hasFluff: fluffMatches.length > 0,
+    fluffMatches,
+    hasProofPoint,
+    hasSingleAsk,
+    hasOptOut,
+  };
 }
 
 export class DraftGenerator {
   /**
-   * Generates strictly grounded, anti-fluff cold outreach drafts
+   * Generates strictly grounded, anti-fluff cold outreach drafts compliant with quality rules
    */
   generateDrafts(
     profile: CandidateProfile,
@@ -60,49 +164,70 @@ export class DraftGenerator {
     if (validSignals.length > 0) {
       signalSnippet = `Noticed your team's recent ${validSignals[0].signalType} update (${validSignals[0].detail}). `;
       citedFacts.push(`Company signal: ${validSignals[0].detail} (${validSignals[0].url})`);
+    } else if (company.researchBrief) {
+      try {
+        const brief = typeof company.researchBrief === 'string' ? JSON.parse(company.researchBrief) : company.researchBrief;
+        if (brief?.recentSpecificThing) {
+          signalSnippet = `I've been following ${company.name}'s work on ${brief.recentSpecificThing}. `;
+          citedFacts.push(`Company brief: ${brief.recentSpecificThing}`);
+        }
+      } catch {
+        // Plain string brief
+      }
     }
 
     const contactFirstName = contact.fullName.split(' ')[0] || 'there';
 
-    // ─── Variant A: Problem/Solution Focus ─────────────────────
-    const subjectA = `${job.title} @ ${company.name} – ${topSkills} test automation`;
-    const bodyA = `Hi ${contactFirstName},
-
-${signalSnippet}I saw ${company.name} is hiring for a ${job.title}. I have 2 years of SDET experience focused on test automation framework design using ${topSkills}.
-
-In my recent work, I ${achievementSnippet}. I specialize in building maintainable end-to-end and API suites that run reliably in CI/CD without flaky false alarms.
-
-Given ${company.name}'s current engineering growth, would you be open to a brief 10-minute conversation this week to see if my testing background aligns with your team's roadmap?
-
-Best regards,
-${candidateName}
-
-P.S. If you're not the right person or not currently hiring for this team, no worries at all—please let me know and I won't follow up.`;
+    // ─── Variant A: Problem/Solution & Framework Architecture Focus ─
+    // Subject rule: under 8 words (< 8 words)
+    const subjectA = `SDET test automation @ ${company.name}`;
+    const bodyA = [
+      `Hi ${contactFirstName},`,
+      ``,
+      `${signalSnippet}I noticed ${company.name} is expanding its QA coverage. I have 2 years of SDET experience designing test automation frameworks with ${topSkills}.`,
+      ``,
+      `In my recent role, I ${achievementSnippet}. My focus is building maintainable API and end-to-end suites that run fast in CI/CD without false alarms.`,
+      ``,
+      `Would you be open to a 10-minute chat this Thursday to see if my testing background aligns with your engineering roadmap?`,
+      ``,
+      `Best regards,`,
+      `${candidateName}`,
+      ``,
+      `P.S. If you're not the right person or not currently hiring for this team, no worries at all—please let me know and I won't follow up.`,
+    ].join('\n');
 
     // ─── Variant B: Direct Traction & Metrics Focus ────────────
-    const subjectB = `Quick note regarding ${job.title} at ${company.name}`;
-    const bodyB = `Hi ${contactFirstName},
-
-I came across the ${job.title} opening at ${company.name} and wanted to reach out directly.
-
-My core SDET stack matches what your team is looking for: ${topSkills}. Over the past 2 years, I ${achievementSnippet}, with a continuous focus on shift-left testing and defect prevention.
-
-Would you be open to a 10-minute call this Thursday or Friday to discuss how I could help ${company.name}'s QA coverage?
-
-Thanks,
-${candidateName}
-
-P.S. If you'd prefer I speak with another member of your engineering or talent team, I'd appreciate any pointer.`;
+    // Subject rule: under 8 words (< 8 words)
+    const subjectB = `Quick note: SDET @ ${company.name}`;
+    const bodyB = [
+      `Hi ${contactFirstName},`,
+      ``,
+      `I came across the SDET opening at ${company.name} and wanted to reach out directly.`,
+      ``,
+      `My core test stack matches your requirements: ${topSkills}. Over the past 2 years, I ${achievementSnippet}, with a continuous focus on shift-left defect prevention and API reliability.`,
+      ``,
+      `Would you be open to a brief 10-minute call this week to discuss how I could help ${company.name}'s QA coverage?`,
+      ``,
+      `Thanks,`,
+      `${candidateName}`,
+      ``,
+      `P.S. If you'd prefer I speak with another member of your engineering team, no worries at all and I'd appreciate any pointer.`,
+    ].join('\n');
 
     // ─── LinkedIn DM Referral Ask (< 75 words) ─────────────────
-    const linkedInDm = `Hi ${contactFirstName}, noticed you're at ${company.name}. I'm an SDET with 2 years of test automation experience (${topSkills}) and saw the ${job.title} opening. Would you be open to sharing a referral or pointing me to the hiring manager? Happy to share my resume and work samples if helpful. Thank you! – ${candidateName}`;
+    const linkedInDm = `Hi ${contactFirstName}, noticed you're at ${company.name}. I'm an SDET with 2 years of test automation experience (${topSkills}) and saw your team's open SDET role. Would you be open to sharing a referral or pointing me to the hiring manager? Happy to share my resume and work samples if helpful. Thank you! – ${candidateName}`;
+    const linkedInWordCount = linkedInDm.trim().split(/\s+/).filter(Boolean).length;
 
-    logger.info(`Generated grounded outreach pack for ${contact.fullName} @ ${company.name}`);
+    const lintA = lintOutreachDraft(subjectA, bodyA);
+    const lintB = lintOutreachDraft(subjectB, bodyB);
+
+    logger.info(`Generated grounded outreach pack for ${contact.fullName} @ ${company.name} (Var A: ${lintA.wordCount}w, Var B: ${lintB.wordCount}w, DM: ${linkedInWordCount}w)`);
 
     return {
-      variantA: { subject: subjectA, body: bodyA },
-      variantB: { subject: subjectB, body: bodyB },
+      variantA: { subject: subjectA, body: bodyA, lint: lintA },
+      variantB: { subject: subjectB, body: bodyB, lint: lintB },
       linkedInDm,
+      linkedInWordCount,
       citedFacts,
     };
   }

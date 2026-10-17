@@ -16,6 +16,7 @@ import {
   SuppressionRecord,
   OutreachRecord,
   OutreachStatus,
+  OutreachOutcome,
 } from '../types';
 import { runMigrations } from './migrations';
 import { logger } from '../utils/logger';
@@ -368,7 +369,7 @@ export class StorageService {
 
   addToSuppressionList(email: string, reason: string): void {
     this.db
-      .prepare('INSERT OR REPLACE INTO suppression_list (email, reason, added_at) VALUES (?, ?, datetime("now"))')
+      .prepare("INSERT OR REPLACE INTO suppression_list (email, reason, added_at) VALUES (?, ?, datetime('now'))")
       .run(email.toLowerCase().trim(), reason);
   }
 
@@ -495,6 +496,13 @@ export class StorageService {
 
   updateOutreachContent(id: number, subject: string, body: string): void {
     this.db.prepare("UPDATE outreach SET subject = ?, body = ?, status = 'draft' WHERE id = ?").run(subject, body, id);
+  }
+
+  recordOutreachReply(id: number, outcome: OutreachOutcome = 'positive', replyAt?: string): void {
+    const at = replyAt || new Date().toISOString();
+    this.db
+      .prepare("UPDATE outreach SET status = 'replied', reply_at = ?, outcome = ? WHERE id = ?")
+      .run(at, outcome, id);
   }
 
   getDailySentCount(dateStr?: string): number {
