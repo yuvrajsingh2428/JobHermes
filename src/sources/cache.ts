@@ -16,7 +16,8 @@ export class SourceCache {
   private defaultTtlMs: number;
   private memoryMap = new Map<string, CacheEntry<unknown>>();
 
-  constructor(cacheDir = './data/cache', defaultTtlMs = 60 * 60 * 1000) { // 1 hour default
+  constructor(cacheDir = './data/cache', defaultTtlMs = 60 * 60 * 1000) {
+    // 1 hour default
     this.cacheDir = path.resolve(cacheDir);
     this.defaultTtlMs = defaultTtlMs;
     try {

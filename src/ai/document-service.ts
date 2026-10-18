@@ -14,11 +14,7 @@ export class DocumentService {
   private storage: StorageService;
   private documentsDir: string;
 
-  constructor(
-    ai: AIService,
-    storage: StorageService,
-    documentsDir: string
-  ) {
+  constructor(ai: AIService, storage: StorageService, documentsDir: string) {
     this.ai = ai;
     this.storage = storage;
     this.documentsDir = documentsDir;

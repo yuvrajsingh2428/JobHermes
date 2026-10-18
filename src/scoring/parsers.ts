@@ -28,7 +28,9 @@ export function parseExperienceRequirement(text: string): ParsedExperience {
   }
 
   // Range match: "1-3 years", "2 to 4 yrs", "1 - 3 yrs of experience"
-  const rangeMatch = lower.match(/(\d+)\s*(?:-|to|–)\s*(\d+)\s*(?:\+?\s*)?(?:yrs?|years?)(?:\s*(?:of\s*)?experience)?/i);
+  const rangeMatch = lower.match(
+    /(\d+)\s*(?:-|to|–)\s*(\d+)\s*(?:\+?\s*)?(?:yrs?|years?)(?:\s*(?:of\s*)?experience)?/i
+  );
   if (rangeMatch) {
     const min = parseInt(rangeMatch[1], 10);
     const max = parseInt(rangeMatch[2], 10);

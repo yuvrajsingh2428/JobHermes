@@ -55,7 +55,10 @@ export class SendService {
   ): { allowed: boolean; reason?: string } {
     // 1. Strict approval gate
     if (outreach.status !== 'approved') {
-      return { allowed: false, reason: `Outreach #${outreach.id} is not approved (status=${outreach.status}). Must be approved before sending.` };
+      return {
+        allowed: false,
+        reason: `Outreach #${outreach.id} is not approved (status=${outreach.status}). Must be approved before sending.`,
+      };
     }
 
     // 2. Data integrity: Real sending must refuse any contact whose source is "sample"/"demo"
@@ -76,11 +79,17 @@ export class SendService {
 
     // 3. Email verification gate: must be verified
     if (contact.emailStatus !== 'verified') {
-      return { allowed: false, reason: `Refusing send: Contact #${contact.id} email is not verified (status=${contact.emailStatus}). Run Hunter verification or 'contacts verify <id>'.` };
+      return {
+        allowed: false,
+        reason: `Refusing send: Contact #${contact.id} email is not verified (status=${contact.emailStatus}). Run Hunter verification or 'contacts verify <id>'.`,
+      };
     }
 
     if (!contact.email || !contact.email.includes('@')) {
-      return { allowed: false, reason: `Contact #${contact.id} does not have a valid email address.` };
+      return {
+        allowed: false,
+        reason: `Contact #${contact.id} does not have a valid email address.`,
+      };
     }
 
     // 4. Suppression list check
@@ -91,13 +100,19 @@ export class SendService {
     // 5. Daily send cap
     const todaySends = this.storage.getDailySentCount();
     if (todaySends >= this.maxDailySends) {
-      return { allowed: false, reason: `Daily send cap of ${this.maxDailySends} reached (sent today: ${todaySends}).` };
+      return {
+        allowed: false,
+        reason: `Daily send cap of ${this.maxDailySends} reached (sent today: ${todaySends}).`,
+      };
     }
 
     // 6. Bounce circuit breaker (>10%)
     const bounceStats = this.storage.getRecentBounceStats();
-    if (bounceStats.totalSent >= 10 && bounceStats.bounceRate > 0.10) {
-      return { allowed: false, reason: `Bounce circuit breaker triggered: bounce rate is ${(bounceStats.bounceRate * 100).toFixed(1)}% (>10%). Sending paused.` };
+    if (bounceStats.totalSent >= 10 && bounceStats.bounceRate > 0.1) {
+      return {
+        allowed: false,
+        reason: `Bounce circuit breaker triggered: bounce rate is ${(bounceStats.bounceRate * 100).toFixed(1)}% (>10%). Sending paused.`,
+      };
     }
 
     // 7. Recipient timezone business hours send window (ENFORCED IN BOTH DRY-RUN AND REAL MODE)
@@ -105,7 +120,10 @@ export class SendService {
       const checkDate = options?.now || new Date();
       const windowCheck = isWithinSendWindow(contact.timezone || 'Asia/Kolkata', checkDate);
       if (!windowCheck.allowed) {
-        return { allowed: false, reason: windowCheck.reason || 'Outside business hours in recipient timezone' };
+        return {
+          allowed: false,
+          reason: windowCheck.reason || 'Outside business hours in recipient timezone',
+        };
       }
     }
 
@@ -120,7 +138,8 @@ export class SendService {
           };
         }
 
-        const senderEmail = options.fromAddress || options.profile.email || process.env.SMTP_USER || '';
+        const senderEmail =
+          options.fromAddress || options.profile.email || process.env.SMTP_USER || '';
         if (!senderEmail || senderEmail.includes('[FILL') || !senderEmail.includes('@')) {
           return {
             allowed: false,
@@ -149,7 +168,9 @@ export class SendService {
     } else {
       // In dry-run mode, warn if [FILL] markers exist
       if (options?.profile && hasFillMarkers(options.profile).hasFill) {
-        logger.warn('Dry-run warning: Candidate profile contains unresolved [FILL] markers (allowed in dry-run mode only).');
+        logger.warn(
+          'Dry-run warning: Candidate profile contains unresolved [FILL] markers (allowed in dry-run mode only).'
+        );
       }
     }
 

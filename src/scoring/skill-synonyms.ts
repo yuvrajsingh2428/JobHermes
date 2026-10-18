@@ -123,7 +123,13 @@ export const SDET_SKILL_SYNONYMS: SkillSynonym[] = [
   },
   {
     canonical: 'Framework Design',
-    patterns: [/\bframework design\b/i, /\bautomation framework\b/i, /\bhybrid framework\b/i, /\bpage object model\b/i, /\bpom\b/i],
+    patterns: [
+      /\bframework design\b/i,
+      /\bautomation framework\b/i,
+      /\bhybrid framework\b/i,
+      /\bpage object model\b/i,
+      /\bpom\b/i,
+    ],
     weight: 3,
   },
   {
@@ -142,13 +148,19 @@ export function matchSkillInText(skillName: string, text: string): boolean {
 
   // 2. Specific tool-to-concept equivalences for SDET keyword gap analysis
   if (lowerSkill === 'api testing') {
-    if (/\b(api test(ing)?|rest api|web services|microservices|rest[- ]?assured|postman)\b/i.test(text)) {
+    if (
+      /\b(api test(ing)?|rest api|web services|microservices|rest[- ]?assured|postman)\b/i.test(
+        text
+      )
+    ) {
       return true;
     }
   }
 
   if (lowerSkill === 'ci/cd integration' || lowerSkill === 'ci/cd') {
-    if (/\b(ci\/?cd|continuous integration|pipelines?|jenkins|github actions|gitlab)\b/i.test(text)) {
+    if (
+      /\b(ci\/?cd|continuous integration|pipelines?|jenkins|github actions|gitlab)\b/i.test(text)
+    ) {
       return true;
     }
   }
@@ -165,7 +177,8 @@ export function matchSkillInText(skillName: string, text: string): boolean {
 
   // 4. Pattern match: if skillName matches any pattern of an entry whose patterns match text
   for (const item of SDET_SKILL_SYNONYMS) {
-    const isThisSkill = item.canonical.toLowerCase() === lowerSkill || item.patterns.some((p) => p.test(skillName));
+    const isThisSkill =
+      item.canonical.toLowerCase() === lowerSkill || item.patterns.some((p) => p.test(skillName));
     if (isThisSkill) {
       for (const pattern of item.patterns) {
         if (pattern.test(text)) return true;
@@ -176,7 +189,10 @@ export function matchSkillInText(skillName: string, text: string): boolean {
   return false;
 }
 
-export function extractSkillsFromText(text: string): { canonicalSkills: string[]; totalWeightedScore: number } {
+export function extractSkillsFromText(text: string): {
+  canonicalSkills: string[];
+  totalWeightedScore: number;
+} {
   const found = new Set<string>();
   let score = 0;
 

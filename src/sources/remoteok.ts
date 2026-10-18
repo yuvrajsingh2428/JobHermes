@@ -40,7 +40,10 @@ export class RemoteOKSource implements JobSource {
       // Filter out meta objects (first item usually has legal/meta without 'position')
       const jobs = res.data.filter(
         (item): item is RemoteOKItem =>
-          typeof item === 'object' && item !== null && 'position' in item && typeof (item as RemoteOKItem).position === 'string'
+          typeof item === 'object' &&
+          item !== null &&
+          'position' in item &&
+          typeof (item as RemoteOKItem).position === 'string'
       );
 
       const relevant = jobs.filter((j) => QA_KEYWORDS.test(j.position || ''));

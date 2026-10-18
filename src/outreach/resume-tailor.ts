@@ -54,12 +54,14 @@ export class ResumeTailor {
     const { canonicalSkills } = extractSkillsFromText(fullJdText);
 
     // Combine all JD skills from JD text extraction, job.skills, and scoreBreakdown
-    const allJdSkills = Array.from(new Set([
-      ...(job.skills || []),
-      ...(job.scoreBreakdown?.matchedSkills || []),
-      ...(job.scoreBreakdown?.missingSkills || []),
-      ...canonicalSkills,
-    ]));
+    const allJdSkills = Array.from(
+      new Set([
+        ...(job.skills || []),
+        ...(job.scoreBreakdown?.matchedSkills || []),
+        ...(job.scoreBreakdown?.missingSkills || []),
+        ...canonicalSkills,
+      ])
+    );
 
     const matchedKeywords: string[] = [];
     const missingKeywords: string[] = [];
@@ -98,7 +100,9 @@ export class ResumeTailor {
         reorderedDiff.push(`[Section Bullet Reordering for ${currentSectionHeader}]`);
         sorted.forEach((item, idx) => {
           if (item.score > 0) {
-            reorderedDiff.push(`  + (Rank #${idx + 1}, matches ${item.score} kw): ${item.text.trim()}`);
+            reorderedDiff.push(
+              `  + (Rank #${idx + 1}, matches ${item.score} kw): ${item.text.trim()}`
+            );
           }
         });
       }

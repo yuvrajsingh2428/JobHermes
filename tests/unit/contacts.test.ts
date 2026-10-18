@@ -6,10 +6,7 @@ import {
   generateEmailFromPattern,
   proposeContactEmails,
 } from '../../src/contacts/pattern-inferrer';
-import {
-  ContactService,
-  isWithinSendWindow,
-} from '../../src/contacts/contact-service';
+import { ContactService, isWithinSendWindow } from '../../src/contacts/contact-service';
 import { HunterAdapter } from '../../src/contacts/hunter-adapter';
 import { StorageService } from '../../src/storage/database';
 import { scoringService } from '../../src/scoring/scorer';
@@ -70,7 +67,12 @@ describe('Phase 2 Contacts, Patterns, Signals, and Send Window Tests', () => {
     });
 
     it('proposes prioritized guesses when known company email pattern is provided', () => {
-      const proposals = proposeContactEmails('Arjun Mehta', 'hackerrank.com', 'priya.sharma@hackerrank.com', 'Priya Sharma');
+      const proposals = proposeContactEmails(
+        'Arjun Mehta',
+        'hackerrank.com',
+        'priya.sharma@hackerrank.com',
+        'Priya Sharma'
+      );
       expect(proposals.length).toBe(1);
       expect(proposals[0].email).toBe('arjun.mehta@hackerrank.com');
       expect(proposals[0].pattern).toBe('first.last');
@@ -278,7 +280,8 @@ describe('Phase 2 Contacts, Patterns, Signals, and Send Window Tests', () => {
       location: 'Bangalore, India',
       isRemote: false,
       url: 'https://hackerrank.com/jobs/1',
-      description: 'Looking for SDET with 2-3 years experience in Java, Selenium, REST Assured, Jenkins.',
+      description:
+        'Looking for SDET with 2-3 years experience in Java, Selenium, REST Assured, Jenkins.',
       source: 'greenhouse',
       postedAt: new Date().toISOString(),
     };
@@ -303,7 +306,9 @@ describe('Phase 2 Contacts, Patterns, Signals, and Send Window Tests', () => {
         companyOpenQaCount: 3,
       });
       expect(breakdown.hiringSignal).toBe(10);
-      expect(breakdown.reasons.some((r) => r.includes('Multiple active QA/SDET openings (3 roles)'))).toBe(true);
+      expect(
+        breakdown.reasons.some((r) => r.includes('Multiple active QA/SDET openings (3 roles)'))
+      ).toBe(true);
     });
 
     it('does not give bonus and flags when company signal is layoffs', () => {
@@ -313,7 +318,9 @@ describe('Phase 2 Contacts, Patterns, Signals, and Send Window Tests', () => {
         signalDetail: '15% engineering team reduction',
       });
       expect(breakdown.hiringSignal).toBe(0);
-      expect(breakdown.reasons.some((r) => r.includes('Company signal indicates recent layoffs'))).toBe(true);
+      expect(
+        breakdown.reasons.some((r) => r.includes('Company signal indicates recent layoffs'))
+      ).toBe(true);
     });
   });
 

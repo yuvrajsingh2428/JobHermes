@@ -22,7 +22,13 @@ export async function verifyTargetSlug(target: CompanyTarget): Promise<Verificat
   const { ats, slug, name } = target;
 
   if (ats === 'custom') {
-    return { name, ats, slug, status: 'skipped', message: 'Custom / Playwright targets skipped in API verification' };
+    return {
+      name,
+      ats,
+      slug,
+      status: 'skipped',
+      message: 'Custom / Playwright targets skipped in API verification',
+    };
   }
 
   let testUrl = '';
@@ -89,7 +95,9 @@ export async function verifyTargetSlug(target: CompanyTarget): Promise<Verificat
   }
 }
 
-export async function runVerifyTargets(configPath = './config/company-targets.json'): Promise<VerificationResult[]> {
+export async function runVerifyTargets(
+  configPath = './config/company-targets.json'
+): Promise<VerificationResult[]> {
   const resolvedPath = path.resolve(configPath);
   if (!fs.existsSync(resolvedPath)) {
     throw new Error(`Targets file not found: ${resolvedPath}`);
@@ -139,17 +147,29 @@ export async function runVerifyTargets(configPath = './config/company-targets.js
 
   if (working.length > 0) {
     console.log('\n✅ WORKING SLUGS:');
-    working.forEach((w) => console.log(`  • [${w.ats.padEnd(10)}] ${w.name.padEnd(25)} slug: "${w.slug}" (${w.jobCount} jobs)`));
+    working.forEach((w) =>
+      console.log(
+        `  • [${w.ats.padEnd(10)}] ${w.name.padEnd(25)} slug: "${w.slug}" (${w.jobCount} jobs)`
+      )
+    );
   }
 
   if (notFound.length > 0) {
     console.log('\n❌ SLUGS TO FIX (HTTP 404):');
-    notFound.forEach((n) => console.log(`  • [${n.ats.padEnd(10)}] ${n.name.padEnd(25)} slug: "${n.slug}" -> ${n.message}`));
+    notFound.forEach((n) =>
+      console.log(
+        `  • [${n.ats.padEnd(10)}] ${n.name.padEnd(25)} slug: "${n.slug}" -> ${n.message}`
+      )
+    );
   }
 
   if (errors.length > 0) {
     console.log('\n⚠️ ERRORS:');
-    errors.forEach((e) => console.log(`  • [${e.ats.padEnd(10)}] ${e.name.padEnd(25)} slug: "${e.slug}" -> ${e.message}`));
+    errors.forEach((e) =>
+      console.log(
+        `  • [${e.ats.padEnd(10)}] ${e.name.padEnd(25)} slug: "${e.slug}" -> ${e.message}`
+      )
+    );
   }
 
   console.log('============================================================\n');

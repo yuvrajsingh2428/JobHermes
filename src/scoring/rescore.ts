@@ -40,9 +40,7 @@ export function rescoreAllJobs(
     );
 
     const validSignals = comp?.id
-      ? storage
-          .getSignals(comp.id)
-          .filter((s) => s.source !== 'demo' && s.source !== 'test')
+      ? storage.getSignals(comp.id).filter((s) => s.source !== 'demo' && s.source !== 'test')
       : [];
 
     const context: ScoringContext = {

@@ -3,12 +3,12 @@
 // ============================================================
 
 export type EmailPattern =
-  | 'first.last'    // john.doe@domain.com
-  | 'firstlast'     // johndoe@domain.com
-  | 'flast'         // jdoe@domain.com
-  | 'first_last'    // john_doe@domain.com
-  | 'first'         // john@domain.com
-  | 'lastf';        // doej@domain.com
+  | 'first.last' // john.doe@domain.com
+  | 'firstlast' // johndoe@domain.com
+  | 'flast' // jdoe@domain.com
+  | 'first_last' // john_doe@domain.com
+  | 'first' // john@domain.com
+  | 'lastf'; // doej@domain.com
 
 export interface InferredProposal {
   email: string;
@@ -29,7 +29,10 @@ function cleanNameParts(fullName: string): { first: string; last: string } {
   return { first, last };
 }
 
-export function detectDomainPattern(knownEmail: string, knownFullName?: string): EmailPattern | null {
+export function detectDomainPattern(
+  knownEmail: string,
+  knownFullName?: string
+): EmailPattern | null {
   const [localPart] = knownEmail.toLowerCase().trim().split('@');
   if (!localPart) return null;
 
@@ -58,7 +61,12 @@ export function generateEmailFromPattern(
   pattern: EmailPattern = 'first.last'
 ): string {
   const { first, last } = cleanNameParts(fullName);
-  const cleanDomain = domain.replace(/^https?:\/\//, '').replace(/^www\./, '').split('/')[0].trim().toLowerCase();
+  const cleanDomain = domain
+    .replace(/^https?:\/\//, '')
+    .replace(/^www\./, '')
+    .split('/')[0]
+    .trim()
+    .toLowerCase();
 
   let local = first;
   switch (pattern) {

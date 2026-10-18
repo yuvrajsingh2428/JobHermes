@@ -8,16 +8,11 @@ import fs from 'fs';
 import crypto from 'crypto';
 import { HermesAgent } from '../agent/hermes-agent';
 import { logger } from '../utils/logger';
-import {
-  ApplicationStatus,
-  CandidateProfile,
-  CompanyTarget,
-  OutreachOutcome,
-} from '../types';
+import { ApplicationStatus, CandidateProfile, CompanyTarget, OutreachOutcome } from '../types';
 import { ResumeTailor } from '../outreach/resume-tailor';
 import { DraftGenerator, lintOutreachDraft } from '../outreach/draft-generator';
 import { SendService } from '../outreach/send-service';
-import { isWithinSendWindow } from '../contacts/contact-service';
+import { ContactService, isWithinSendWindow } from '../contacts/contact-service';
 import { FollowUpService } from '../outreach/follow-up-service';
 import { proposeContactEmails } from '../contacts/pattern-inferrer';
 import { runDoctor } from '../utils/doctor';
@@ -96,7 +91,9 @@ export class DashboardServer {
         if (['POST', 'PATCH', 'PUT'].includes(method)) {
           const contentType = req.headers['content-type'];
           if (!contentType || !contentType.toLowerCase().includes('application/json')) {
-            res.status(415).json({ error: 'Unsupported Media Type: Content-Type must be application/json' });
+            res
+              .status(415)
+              .json({ error: 'Unsupported Media Type: Content-Type must be application/json' });
             return;
           }
         }
@@ -133,10 +130,13 @@ export class DashboardServer {
         const apps = storage.getApplications();
         const allJobs = storage.getAllJobs();
 
-        const statusCounts = allJobs.reduce((acc, job) => {
-          acc[job.status] = (acc[job.status] || 0) + 1;
-          return acc;
-        }, {} as Record<string, number>);
+        const statusCounts = allJobs.reduce(
+          (acc, job) => {
+            acc[job.status] = (acc[job.status] || 0) + 1;
+            return acc;
+          },
+          {} as Record<string, number>
+        );
 
         const qualifiedJobs = allJobs.filter((j) => (j.score ?? 0) >= 60);
         const nearMissJobs = allJobs.filter((j) => (j.score ?? 0) >= 40 && (j.score ?? 0) < 60);
@@ -152,9 +152,18 @@ export class DashboardServer {
 
         const distribution = [
           { range: '90-100', count: allJobs.filter((j) => (j.score ?? 0) >= 90).length },
-          { range: '80-89', count: allJobs.filter((j) => (j.score ?? 0) >= 80 && (j.score ?? 0) < 90).length },
-          { range: '70-79', count: allJobs.filter((j) => (j.score ?? 0) >= 70 && (j.score ?? 0) < 80).length },
-          { range: '60-69', count: allJobs.filter((j) => (j.score ?? 0) >= 60 && (j.score ?? 0) < 70).length },
+          {
+            range: '80-89',
+            count: allJobs.filter((j) => (j.score ?? 0) >= 80 && (j.score ?? 0) < 90).length,
+          },
+          {
+            range: '70-79',
+            count: allJobs.filter((j) => (j.score ?? 0) >= 70 && (j.score ?? 0) < 80).length,
+          },
+          {
+            range: '60-69',
+            count: allJobs.filter((j) => (j.score ?? 0) >= 60 && (j.score ?? 0) < 70).length,
+          },
           { range: '40-59 (Near Misses)', count: nearMissJobs.length },
           { range: 'Below 40', count: allJobs.filter((j) => (j.score ?? 0) < 40).length },
         ];
@@ -214,8 +223,12 @@ export class DashboardServer {
     this.app.get('/api/jobs', (req, res) => {
       try {
         const status = req.query.status as ApplicationStatus | undefined;
-        const minScore = req.query.minScore ? parseInt(req.query.minScore as string, 10) : undefined;
-        const maxScore = req.query.maxScore ? parseInt(req.query.maxScore as string, 10) : undefined;
+        const minScore = req.query.minScore
+          ? parseInt(req.query.minScore as string, 10)
+          : undefined;
+        const maxScore = req.query.maxScore
+          ? parseInt(req.query.maxScore as string, 10)
+          : undefined;
         const nearMisses = req.query.nearMisses === 'true';
         const stretch = req.query.stretch ? req.query.stretch === 'true' : undefined;
         const company = req.query.company as string | undefined;
@@ -307,11 +320,17 @@ export class DashboardServer {
     this.app.get('/api/companies', (_req, res) => {
       try {
         const targetsPath = path.resolve('./config/company-targets.json');
-        const targets: CompanyTarget[] = fs.existsSync(targetsPath) ? JSON.parse(fs.readFileSync(targetsPath, 'utf-8')) : [];
+        const targets: CompanyTarget[] = fs.existsSync(targetsPath)
+          ? JSON.parse(fs.readFileSync(targetsPath, 'utf-8'))
+          : [];
         const dbCompanies = storage.getAllCompanies();
 
         const enriched = targets.map((t) => {
-          const dbComp = dbCompanies.find((c) => c.name.toLowerCase() === t.name.toLowerCase() || c.domain.toLowerCase() === t.domain.toLowerCase());
+          const dbComp = dbCompanies.find(
+            (c) =>
+              c.name.toLowerCase() === t.name.toLowerCase() ||
+              c.domain.toLowerCase() === t.domain.toLowerCase()
+          );
           const signalCount = dbComp?.id ? storage.getSignals(dbComp.id).length : 0;
           return {
             ...t,
@@ -353,7 +372,9 @@ export class DashboardServer {
 
     this.app.get('/api/signals', (req, res) => {
       try {
-        const companyId = req.query.companyId ? parseInt(req.query.companyId as string, 10) : undefined;
+        const companyId = req.query.companyId
+          ? parseInt(req.query.companyId as string, 10)
+          : undefined;
         const signals = storage.getSignals(companyId);
         const companies = storage.getAllCompanies();
 
@@ -388,7 +409,9 @@ export class DashboardServer {
         }
 
         if (!targetCompanyId || !signalType || !detail) {
-          res.status(400).json({ error: 'companyName/companyId, signalType, and detail are required' });
+          res
+            .status(400)
+            .json({ error: 'companyName/companyId, signalType, and detail are required' });
           return;
         }
 
@@ -420,7 +443,9 @@ export class DashboardServer {
 
     this.app.get('/api/contacts', (req, res) => {
       try {
-        const companyId = req.query.companyId ? parseInt(req.query.companyId as string, 10) : undefined;
+        const companyId = req.query.companyId
+          ? parseInt(req.query.companyId as string, 10)
+          : undefined;
         const verifiedOnly = req.query.verifiedOnly === 'true';
 
         const contacts = storage.getAllContacts({
@@ -446,7 +471,18 @@ export class DashboardServer {
 
     this.app.post('/api/contacts', (req, res) => {
       try {
-        const { companyId, fullName, title, contactType, email, emailStatus, timezone, linkedinUrl, notes, source } = req.body;
+        const {
+          companyId,
+          fullName,
+          title,
+          contactType,
+          email,
+          emailStatus,
+          timezone,
+          linkedinUrl,
+          notes,
+          source,
+        } = req.body;
         if (!companyId || !fullName || !title) {
           res.status(400).json({ error: 'companyId, fullName, and title are required' });
           return;
@@ -466,6 +502,26 @@ export class DashboardServer {
         });
 
         res.json({ success: true, contactId: id });
+      } catch (err: any) {
+        res.status(500).json({ error: err.message });
+      }
+    });
+
+    this.app.post('/api/contacts/import', (req, res) => {
+      try {
+        const { filePath } = req.body;
+        if (!filePath) {
+          res.status(400).json({ error: 'filePath is required' });
+          return;
+        }
+        const contactService = new ContactService(storage);
+        const result = contactService.importContactsFromCsv(filePath);
+        res.json({
+          success: true,
+          importedCount: result.imported,
+          failedCount: result.failed,
+          errors: result.errors,
+        });
       } catch (err: any) {
         res.status(500).json({ error: err.message });
       }
@@ -578,7 +634,9 @@ export class DashboardServer {
         const signals = storage.getSignals(company.id);
         const profile = readJsonFile<CandidateProfile>('./config/candidate-profile.json');
         const generator = new DraftGenerator();
-        const pack = generator.generateDrafts(profile, job, contact, company, signals, { allowFillForDemo: true });
+        const pack = generator.generateDrafts(profile, job, contact, company, signals, {
+          allowFillForDemo: true,
+        });
 
         const draftAId = storage.addOutreach({
           contactId: contact.id!,
@@ -654,7 +712,7 @@ export class DashboardServer {
     this.app.post('/api/outreach/:id/send', async (req, res) => {
       try {
         const id = parseInt(req.params.id, 10);
-        const { dryRun, bypassWindow } = req.body;
+        const { dryRun, bypassWindow, fakeNow } = req.body;
 
         const isDryRun = dryRun !== false;
         const sendService = new SendService(storage, 20, isDryRun);
@@ -663,6 +721,7 @@ export class DashboardServer {
         const result = await sendService.sendOutreach(id, profile, {
           bypassTimezone: Boolean(bypassWindow),
           allowDemo: true, // Demo allowed in dry run
+          now: fakeNow ? new Date(fakeNow) : undefined,
         });
 
         res.json(result);
@@ -738,11 +797,14 @@ export class DashboardServer {
           return;
         }
 
-        this.agent.runDailyScan().then(() => {
-          logger.info('Manual job scan completed successfully.');
-        }).catch((err) => {
-          logger.error('Manual job scan failed', { error: String(err) });
-        });
+        this.agent
+          .runDailyScan()
+          .then(() => {
+            logger.info('Manual job scan completed successfully.');
+          })
+          .catch((err) => {
+            logger.error('Manual job scan failed', { error: String(err) });
+          });
 
         res.json({ success: true, message: 'Scan triggered in background.' });
       } catch (err: any) {
@@ -758,7 +820,7 @@ export class DashboardServer {
 
     this.app.get('/api/export', (req, res) => {
       try {
-        const type = req.query.type as string || 'jobs';
+        const type = (req.query.type as string) || 'jobs';
         if (type === 'contacts') {
           res.json(storage.getAllContacts());
         } else if (type === 'outreach') {

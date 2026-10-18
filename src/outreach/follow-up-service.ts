@@ -134,7 +134,9 @@ export class FollowUpService {
         source: sent.source || 'manual',
       });
 
-      logger.success(`Follow-up draft #${followUpId} created for contact #${sent.contactId} (${contact.email})`);
+      logger.success(
+        `Follow-up draft #${followUpId} created for contact #${sent.contactId} (${contact.email})`
+      );
       results.push({
         outreachId: sent.id,
         contactId: sent.contactId,
@@ -157,6 +159,8 @@ export class FollowUpService {
     }
 
     this.storage.recordOutreachReply(outreachId, outcome);
-    logger.success(`Recorded reply for Outreach #${outreachId}. Status set to 'replied' (outcome: ${outcome}).`);
+    logger.success(
+      `Recorded reply for Outreach #${outreachId}. Status set to 'replied' (outcome: ${outcome}).`
+    );
   }
 }

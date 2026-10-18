@@ -70,7 +70,10 @@ export class HttpClient {
     resolveCurrent();
   }
 
-  async get<T = unknown>(url: string, options?: RequestOptions): Promise<{ data: T; status: number; fromCache: boolean }> {
+  async get<T = unknown>(
+    url: string,
+    options?: RequestOptions
+  ): Promise<{ data: T; status: number; fromCache: boolean }> {
     const useCache = options?.useCache ?? true;
     const cacheKey = `GET:${url}:${JSON.stringify(options?.params || {})}`;
 
@@ -105,7 +108,9 @@ export class HttpClient {
             if (!isNaN(parsed)) backoffMs = parsed * 1000;
           }
 
-          logger.warn(`Backing off ${Math.round(backoffMs)}ms due to HTTP ${response.status} from ${host}`);
+          logger.warn(
+            `Backing off ${Math.round(backoffMs)}ms due to HTTP ${response.status} from ${host}`
+          );
           await new Promise((r) => setTimeout(r, backoffMs));
           continue;
         }
