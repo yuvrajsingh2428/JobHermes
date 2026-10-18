@@ -18,3 +18,5 @@ output/eml/
 *.db-shm
 *.db-wal
 coverage/
+documents/
+reports/

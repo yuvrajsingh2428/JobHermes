@@ -3,7 +3,7 @@
 // ============================================================
 
 import { CompanyTarget, RawJob } from '../types';
-import { JobSource, deduplicateJobs } from './types';
+import { JobSource, deduplicateJobs, cleanCanonicalUrl, normalizeJobTitle } from './types';
 import { greenhouseSource } from './greenhouse';
 import { leverSource } from './lever';
 import { ashbySource } from './ashby';
@@ -31,6 +31,7 @@ export function getSourceAdapter(ats: string): JobSource | undefined {
 export interface TargetFetchResult {
   target: CompanyTarget;
   success: boolean;
+  fetchSucceeded: boolean;
   statusCode?: number;
   jobs: RawJob[];
   error?: string;
@@ -46,6 +47,7 @@ export async function fetchJobsForTargetDetailed(
     return {
       target,
       success: false,
+      fetchSucceeded: false,
       jobs: [],
       error: `No adapter found for ATS type '${target.ats}'`,
       errorType: 'unknown',
@@ -57,6 +59,7 @@ export async function fetchJobsForTargetDetailed(
     return {
       target,
       success: true,
+      fetchSucceeded: true,
       statusCode: 200,
       jobs,
     };
@@ -84,6 +87,7 @@ export async function fetchJobsForTargetDetailed(
     return {
       target,
       success: false,
+      fetchSucceeded: false,
       statusCode,
       jobs: [],
       error: err.message,
@@ -158,6 +162,8 @@ export async function fetchAllTargets(
 export {
   JobSource,
   deduplicateJobs,
+  cleanCanonicalUrl,
+  normalizeJobTitle,
   greenhouseSource,
   leverSource,
   ashbySource,

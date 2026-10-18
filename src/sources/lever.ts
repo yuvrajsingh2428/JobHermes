@@ -80,7 +80,7 @@ export class LeverSource implements JobSource {
       logger.error(`Error fetching Lever jobs for ${target.name} (${slug})`, {
         error: String(err),
       });
-      return [];
+      throw err;
     }
   }
 }

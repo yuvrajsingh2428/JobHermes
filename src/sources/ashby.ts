@@ -78,7 +78,7 @@ export class AshbySource implements JobSource {
       logger.error(`Error fetching Ashby jobs for ${target.name} (${slug})`, {
         error: String(err),
       });
-      return [];
+      throw err;
     }
   }
 }
