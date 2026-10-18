@@ -9,6 +9,7 @@ import {
   CompanyRecord,
   SignalRecord,
   hasFillMarkers,
+  getProfileAchievements,
 } from '../types';
 import { logger } from '../utils/logger';
 
@@ -45,6 +46,8 @@ export const FLUFF_PATTERNS = [
   /\bhope this (?:email|message) finds you well\b/i,
   /\bhope you(?:'re| are) doing well\b/i,
   /\bwriting to express my interest\b/i,
+  /\bI am writing regarding\b/i,
+  /\bwriting regarding\b/i,
   /\bthrilled to apply\b/i,
   /\bpassionate about\b/i,
   /\bsynergy\b/i,
@@ -66,7 +69,7 @@ export const FLUFF_PATTERNS = [
  * - At least one concrete metric / proof point
  * - Exactly one call-to-action ask (?)
  * - Polite opt-out line
- * - Grounding: flags unsupported company claims (expanding, funding, etc.) without verified signal/brief
+ * - Grounding: flags unsupported company claims (focus on, known for, scalable, platform, growth, etc.) without verified signal/brief
  */
 export function lintOutreachDraft(
   subject: string,
@@ -100,15 +103,26 @@ export function lintOutreachDraft(
   }
 
   // Grounding check for unbacked company claims
-  const companyClaimPattern =
-    /\b(expanding|scaling|growth|funding|series [a-z]|raised|doubling headcount)\b/i;
-  const claimMatch = body.match(companyClaimPattern);
-  const hasUnsupportedClaims = Boolean(
-    claimMatch && context && !context.hasSignal && !context.hasBrief
-  );
-  if (hasUnsupportedClaims && claimMatch) {
+  const companyClaimPatterns = [
+    /\b((?:company|team|headcount) is (?:expanding|scaling)|expanding (?:its|the|team|headcount)|scaling (?:its|the|team|headcount)|rapidly scaling|company growth|business growth|doubling headcount|funding|series [a-z]|raised [$\d])\b/i,
+    /\b(focus(?:ed|ing)? on|known for|given [a-z0-9'\s]+'s|your platform(?:s)?|platforms?|scalable)\b/i,
+    /\b(quality initiatives|engineering goals|company mission)\b/i,
+  ];
+
+  let unbackedClaim: string | null = null;
+  if (context && !context.hasSignal && !context.hasBrief) {
+    for (const pattern of companyClaimPatterns) {
+      const match = body.match(pattern);
+      if (match) {
+        unbackedClaim = match[0];
+        break;
+      }
+    }
+  }
+  const hasUnsupportedClaims = Boolean(unbackedClaim);
+  if (hasUnsupportedClaims && unbackedClaim) {
     warnings.push(
-      `Draft contains unsupported company claim ("${claimMatch[0]}") without a verified signal URL or research brief`
+      `Draft contains unsupported company claim ("${unbackedClaim}") without a verified signal URL or research brief`
     );
   }
 
@@ -163,6 +177,8 @@ export class DraftGenerator {
     options?: { allowFillForDemo?: boolean }
   ): GeneratedOutreachPack {
     // 1. Fail-safe guard against unresolved [FILL] markers and demo values
+    const allAchievements = getProfileAchievements(profile);
+
     if (!options?.allowFillForDemo) {
       const fillCheck = hasFillMarkers(profile);
       if (fillCheck.hasFill) {
@@ -171,16 +187,14 @@ export class DraftGenerator {
         );
       }
 
-      // Real-mode guard: achievements must not be placeholders or demo values
-      const demoPatterns = [/60%/i, /45%/i, /\[FILL/i];
+      // Real-mode guard: achievements must not be empty, placeholders, or carry source="demo"
       const hasInvalidAchievements =
-        !profile.achievements ||
-        profile.achievements.length === 0 ||
-        profile.achievements.every((a) => demoPatterns.some((p) => p.test(a)));
+        allAchievements.length === 0 ||
+        allAchievements.every((a) => a.text.includes('[FILL') || a.source === 'demo');
 
       if (hasInvalidAchievements) {
         throw new Error(
-          'Refusing to generate outreach in real mode: candidate achievements contain placeholders or demo values. Update your achievements with real experience in config/candidate-profile.json.'
+          'Refusing to generate outreach in real mode: candidate achievements contain placeholders or are flagged with source="demo". Update your achievements with real experience in config/candidate-profile.json.'
         );
       }
     }
@@ -224,17 +238,22 @@ export class DraftGenerator {
     if (options?.allowFillForDemo) {
       // Demo sandbox fallback achievements
       achievementSnippet =
-        profile.achievements.find((a) => !a.includes('[FILL')) ||
+        allAchievements.find((a) => !a.text.includes('[FILL'))?.text ||
         'built automated regression suites reducing manual test cycles by 60%';
       secondAchievement =
-        profile.achievements.filter((a) => !a.includes('[FILL'))[1] ||
+        allAchievements.filter((a) => !a.text.includes('[FILL'))[1]?.text ||
         'built hybrid automation framework reducing execution time by 45%';
     } else {
-      const realAchievements = (profile.achievements || []).filter(
-        (a) => !a.includes('[FILL') && !/60%|45%/i.test(a)
+      const realAchievements = allAchievements.filter(
+        (a) => !a.text.includes('[FILL') && a.source !== 'demo'
       );
-      achievementSnippet = realAchievements[0] || profile.achievements[0] || '';
-      secondAchievement = realAchievements[1] || profile.achievements[1] || '';
+      if (realAchievements.length === 0) {
+        throw new Error(
+          'Refusing to generate outreach in real mode: candidate achievements contain placeholders or are flagged with source="demo". Update your achievements with real experience in config/candidate-profile.json.'
+        );
+      }
+      achievementSnippet = realAchievements[0].text;
+      secondAchievement = realAchievements[1]?.text || '';
     }
 
     citedFacts.push(`Key achievement: ${achievementSnippet}`);
@@ -265,8 +284,8 @@ export class DraftGenerator {
     // Subject rule: under 8 words (< 8 words)
     const subjectA = `SDET test automation @ ${company.name}`;
     const openingA = signalSnippet
-      ? `${signalSnippet}I have ${years} years of SDET experience designing test automation frameworks with ${topSkills}.`
-      : `I came across the ${job.title} role at ${company.name} and wanted to reach out directly. I have ${years} years of SDET experience designing test automation frameworks with ${topSkills}.`;
+      ? `${signalSnippet}Over the past ${years} years, I have specialized in test automation with ${topSkills}.`
+      : `I came across the ${job.title} role at ${company.name} and wanted to reach out directly. Over the past ${years} years, I have specialized in test automation with ${topSkills}.`;
 
     const bodyA = [
       `Hi ${contactFirstName},`,
@@ -286,14 +305,18 @@ export class DraftGenerator {
     // ─── Variant B: Direct Traction & Metrics Focus ────────────
     // Subject rule: under 8 words (< 8 words)
     const subjectB = `Quick note: SDET @ ${company.name}`;
+    const openingB = signalSnippet
+      ? `I noticed the ${job.title} opening at ${company.name} following your recent team update.`
+      : `I saw the ${job.title} opening at ${company.name} and wanted to reach out directly.`;
+
     const bodyB = [
       `Hi ${contactFirstName},`,
       ``,
-      `I saw the ${job.title} opening at ${company.name} and wanted to reach out directly.`,
+      openingB,
       ``,
       `My core test stack matches your requirements: ${topSkills}. Over the past ${years} years, I ${achievementSnippet}. I also ${secondAchievement.toLowerCase()}.`,
       ``,
-      `Would you be open to a brief 10-minute conversation next week to discuss how I could contribute to ${company.name}'s QA engineering goals?`,
+      `Would you be open to a brief 10-minute conversation next week to discuss how my test automation experience could support your team?`,
       ``,
       `Thanks,`,
       `${candidateName}`,
@@ -302,7 +325,7 @@ export class DraftGenerator {
     ].join('\n');
 
     // ─── LinkedIn DM Referral Ask (< 75 words) ─────────────────
-    const linkedInDm = `Hi ${contactFirstName}, noticed you're at ${company.name}. I'm an SDET with 2 years of test automation experience (${topSkills}) and saw your open SDET role. Would you be open to pointing me to the hiring manager or sharing a referral? Happy to share my resume and work samples if helpful. Thank you! – ${candidateName}`;
+    const linkedInDm = `Hi ${contactFirstName}, noticed you're at ${company.name}. I have ${years} years of test automation experience with ${topSkills} and saw the ${job.title} opening. Would you be open to pointing me to the hiring manager or sharing a referral? Happy to share details. Thank you! – ${candidateName}`;
     const linkedInWordCount = linkedInDm.trim().split(/\s+/).filter(Boolean).length;
 
     const contextLint = {

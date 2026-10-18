@@ -88,3 +88,42 @@ export function seedDemoSandbox(demoDbPath = getDemoDbPath()): StorageService {
   logger.success(`Demo sandbox initialized in ${resolved}`);
   return storage;
 }
+
+export function getDemoCandidateProfile() {
+  return {
+    name: 'Candidate',
+    title: 'SDET',
+    email: 'candidate@example.com',
+    phone: '+91 9999999999',
+    location: 'Bangalore, India',
+    summary: 'SDET with 2 years experience in automation frameworks.',
+    targetRoles: ['SDET', 'QA Automation Engineer'],
+    experienceYears: 2,
+    minExperienceYears: 1,
+    maxExperienceYears: 3,
+    profile_reviewed: true,
+    skills: {
+      languages: ['Java', 'TypeScript'],
+      automationTools: ['Playwright', 'Selenium', 'REST Assured'],
+      frameworks: ['TestNG'],
+      devopsAndCiCd: ['Jenkins', 'Docker'],
+      databases: ['PostgreSQL'],
+      methodologies: ['Agile', 'BDD'],
+    },
+    preferredLocations: ['Bangalore', 'Remote'],
+    openToRemote: true,
+    minSalaryLPA: 20,
+    noticePeriodDays: 30,
+    achievements: [
+      {
+        text: 'built automated regression suites scaling test coverage across services',
+        source: 'demo',
+      },
+      {
+        text: 'architected api test automation framework for backend microservices',
+        source: 'demo',
+      },
+    ],
+    achievementsSource: 'demo',
+  };
+}

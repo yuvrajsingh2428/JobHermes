@@ -395,21 +395,51 @@ describe('Phase 3 Outreach Engine, Safety Rails & Grounding Tests', () => {
       expect(lint.warnings.some((w) => w.includes('Missing polite opt-out line'))).toBe(true);
     });
 
-    it('refuses to generate real-mode drafts if achievements contain [FILL] placeholders or demo sandbox values', () => {
-      const demoProfile: CandidateProfile = {
+    it('accepts real-mode profile with real achievement containing 60% and generates drafts successfully', () => {
+      const realProfileWith60: CandidateProfile = {
         ...validProfile,
         achievements: [
           'built automated regression suites reducing manual test cycles by 60%',
-          'built hybrid automation framework reducing execution time by 45%',
+          'built hybrid automation framework scaling coverage across microservices',
+        ],
+      };
+
+      const contact = storage.getContactById(testContactId)!;
+      const pack = generator.generateDrafts(
+        realProfileWith60,
+        sampleJob,
+        contact,
+        sampleCompany,
+        [],
+        {
+          allowFillForDemo: false,
+        }
+      );
+
+      expect(pack.variantA.body).toContain(
+        'built automated regression suites reducing manual test cycles by 60%'
+      );
+      expect(pack.variantA.lint.valid).toBe(true);
+      expect(pack.variantB.lint.valid).toBe(true);
+    });
+
+    it('refuses real-mode drafts if achievements carry source="demo" or [FILL] placeholders', () => {
+      const demoFlaggedProfile: CandidateProfile = {
+        ...validProfile,
+        achievements: [
+          {
+            text: 'built automated regression suites reducing manual test cycles by 60%',
+            source: 'demo',
+          },
         ],
       };
 
       const contact = storage.getContactById(testContactId)!;
       expect(() => {
-        generator.generateDrafts(demoProfile, sampleJob, contact, sampleCompany, [], {
+        generator.generateDrafts(demoFlaggedProfile, sampleJob, contact, sampleCompany, [], {
           allowFillForDemo: false,
         });
-      }).toThrow(/placeholders or demo values/);
+      }).toThrow(/source="demo"/i);
 
       const fillProfile: CandidateProfile = {
         ...validProfile,
@@ -419,7 +449,42 @@ describe('Phase 3 Outreach Engine, Safety Rails & Grounding Tests', () => {
         generator.generateDrafts(fillProfile, sampleJob, contact, sampleCompany, [], {
           allowFillForDemo: false,
         });
-      }).toThrow(/placeholders or demo values|unresolved \[FILL\] markers/);
+      }).toThrow(/placeholders or are flagged with source="demo"|unresolved \[FILL\] markers/);
+    });
+
+    it('flags unsupported company claims like focus on, known for, scalable, your platform when no signal/brief exists', () => {
+      const draftWithClaim =
+        "Hi Priya,\n\nI noticed the SDET role at HackerRank. Given HackerRank's focus on scalable platforms, I wanted to reach out. Over the past 2 years, I built automated test frameworks with Playwright and REST Assured. In my recent role, I scaled test coverage. Additionally, I architected api test automation framework for backend microservices.\n\nWould you be open to a brief 10-minute conversation next week to see if my testing background aligns with your team's needs?\n\nBest regards,\nCandidate\n\nP.S. If you're not the right person, no worries at all—please let me know and I won't follow up.";
+      const lint = lintOutreachDraft('SDET test automation @ HackerRank', draftWithClaim, {
+        hasSignal: false,
+        hasBrief: false,
+      });
+      expect(lint.hasUnsupportedClaims).toBe(true);
+      expect(lint.warnings.some((w) => w.includes('unsupported company claim'))).toBe(true);
+    });
+
+    it('generates drafts with zero company claims when neither signal nor brief exists, citing only role title', () => {
+      const contact = storage.getContactById(testContactId)!;
+      const emptyCompany: CompanyRecord = {
+        ...sampleCompany,
+        researchBrief: undefined,
+      };
+      const pack = generator.generateDrafts(validProfile, sampleJob, contact, emptyCompany, [], {
+        allowFillForDemo: false,
+      });
+
+      expect(pack.variantA.body).not.toMatch(
+        /focus on|known for|given HackerRank's|your platform|scalable|quality initiatives|engineering goals/i
+      );
+      expect(pack.variantB.body).not.toMatch(
+        /focus on|known for|given HackerRank's|your platform|scalable|quality initiatives|engineering goals/i
+      );
+      expect(pack.variantA.body).not.toContain('I am writing regarding');
+      expect(pack.variantB.body).not.toContain('I am writing regarding');
+      expect(pack.variantB.body).not.toContain('I focus on building reliable CI test pipelines');
+      expect(pack.variantB.body).not.toContain('next Tuesday');
+      expect(pack.variantA.lint.valid).toBe(true);
+      expect(pack.variantB.lint.valid).toBe(true);
     });
 
     it('uses profile fields verbatim in candidate sentences without generated purpose clauses', () => {

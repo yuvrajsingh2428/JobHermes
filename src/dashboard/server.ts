@@ -25,6 +25,7 @@ export class DashboardServer {
   private port: number;
   private serverInstance: any;
   private localToken: string;
+  private testClock?: Date;
 
   constructor(agent: HermesAgent, port = 3000) {
     this.agent = agent;
@@ -37,6 +38,20 @@ export class DashboardServer {
 
   public getLocalToken(): string {
     return this.localToken;
+  }
+
+  /**
+   * Clock override strictly restricted to test code execution.
+   * Cannot be set via HTTP parameters, request headers, or environment variables.
+   */
+  public setTestClock(date?: Date): void {
+    if (process.env.NODE_ENV === 'test') {
+      this.testClock = date;
+    }
+  }
+
+  public getTestClock(): Date | undefined {
+    return process.env.NODE_ENV === 'test' ? this.testClock : undefined;
   }
 
   private setupMiddleware() {
@@ -712,16 +727,19 @@ export class DashboardServer {
     this.app.post('/api/outreach/:id/send', async (req, res) => {
       try {
         const id = parseInt(req.params.id, 10);
-        const { dryRun, bypassWindow, fakeNow } = req.body;
+        // Security requirement: fakeNow or clock overrides cannot be accepted from HTTP request body/params/headers/env
+        const { dryRun, bypassWindow } = req.body;
 
         const isDryRun = dryRun !== false;
         const sendService = new SendService(storage, 20, isDryRun);
         const profile = readJsonFile<CandidateProfile>('./config/candidate-profile.json');
 
+        const effectiveNow = process.env.NODE_ENV === 'test' ? this.testClock : undefined;
+
         const result = await sendService.sendOutreach(id, profile, {
           bypassTimezone: Boolean(bypassWindow),
           allowDemo: true, // Demo allowed in dry run
-          now: fakeNow ? new Date(fakeNow) : undefined,
+          now: effectiveNow,
         });
 
         res.json(result);

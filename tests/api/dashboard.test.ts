@@ -492,4 +492,34 @@ describe('Phase 4 Dashboard Server & REST API Tests', () => {
     expect(res.status).toBe(200);
     expect(res.headers.get('access-control-allow-origin')).toBeNull();
   });
+
+  it('21. Clock Override Security: Ignores fakeNow in HTTP requests and prevents clock manipulation via API', async () => {
+    // 1. Approve outreach draft #1
+    storage.updateOutreachStatus(1, 'approved');
+
+    // 2. Set server test clock to an out-of-hours timestamp (Sunday 23:00 IST)
+    server.setTestClock(new Date('2026-10-18T17:30:00.000Z'));
+
+    // 3. Send HTTP POST with fakeNow set to inside business window (Wednesday 11:30 IST)
+    const res = await fetch(`${baseUrl}/api/outreach/1/send`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Hermes-Token': server.getLocalToken(),
+      },
+      body: JSON.stringify({
+        dryRun: true,
+        fakeNow: '2026-10-14T06:00:00.000Z', // Attempted bypass via HTTP body
+      }),
+    });
+
+    const data = await res.json();
+    // Proves that fakeNow in HTTP body was completely ignored and send was blocked by real server test clock
+    expect(data.success).toBe(false);
+    expect(data.error).toMatch(/Outside business hours|Outside business days/i);
+
+    // Draft remains approved and was not sent
+    const draft = storage.getOutreachById(1);
+    expect(draft?.status).toBe('approved');
+  });
 });
