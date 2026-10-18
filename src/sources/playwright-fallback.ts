@@ -17,7 +17,8 @@ export class PlaywrightFallbackSource implements JobSource {
       return [];
     }
 
-    const listSelector = target.listSelector || '[data-job-id], .job-card, .job-item, li[class*="job"]';
+    const listSelector =
+      target.listSelector || '[data-job-id], .job-card, .job-item, li[class*="job"]';
     const titleSelector = target.titleSelector || 'h2, h3, h4, .title, a';
     const linkSelector = target.linkSelector || 'a';
 
@@ -28,7 +29,8 @@ export class PlaywrightFallbackSource implements JobSource {
       logger.info(`Running Playwright fallback scraper for ${target.name}`, { url: customUrl });
       browser = await chromium.launch({ headless: true });
       const context = await browser.newContext({
-        userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36',
+        userAgent:
+          'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0.0.0 Safari/537.36',
       });
       const page = await context.newPage();
 

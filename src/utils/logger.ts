@@ -17,8 +17,8 @@ const LEVEL_ORDER: Record<LogLevel, number> = {
 
 const LEVEL_COLORS: Record<LogLevel, string> = {
   debug: '\x1b[36m', // cyan
-  info: '\x1b[32m',  // green
-  warn: '\x1b[33m',  // yellow
+  info: '\x1b[32m', // green
+  warn: '\x1b[33m', // yellow
   error: '\x1b[31m', // red
 };
 
@@ -51,7 +51,6 @@ class Logger {
   private shouldLog(level: LogLevel): boolean {
     return LEVEL_ORDER[level] >= LEVEL_ORDER[this.logLevel];
   }
-
 
   private writeToFile(entry: LogEntry): void {
     try {
@@ -111,7 +110,11 @@ class Logger {
 
   success(message: string): void {
     console.log(`\x1b[32m✅ ${message}${RESET}`);
-    const entry: LogEntry = { level: 'info', message: `✅ ${message}`, timestamp: new Date().toISOString() };
+    const entry: LogEntry = {
+      level: 'info',
+      message: `✅ ${message}`,
+      timestamp: new Date().toISOString(),
+    };
     this.writeToFile(entry);
   }
 }

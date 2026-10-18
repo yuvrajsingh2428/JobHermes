@@ -26,7 +26,7 @@ async function main(): Promise<void> {
   const isDemo = process.env.DEMO_MODE === 'true' || rawArgs.includes('--demo');
   const args = rawArgs.filter((a) => a !== '--demo');
   const flag = args[0];
-  const dbPath = isDemo ? getDemoDbPath() : (process.env.DATABASE_PATH || './data/jobhermes.db');
+  const dbPath = isDemo ? getDemoDbPath() : process.env.DATABASE_PATH || './data/jobhermes.db';
 
   if (isDemo && !fs.existsSync(dbPath)) {
     seedDemoSandbox(dbPath);
@@ -65,7 +65,9 @@ async function main(): Promise<void> {
 
       if (!companyName || !detail) {
         logger.error('Usage: npm run signal add <company> <type> <detail> [url]');
-        logger.info('Types: funding | hiring_post | multiple_qa_roles | product_launch | headcount_growth | layoffs | other');
+        logger.info(
+          'Types: funding | hiring_post | multiple_qa_roles | product_launch | headcount_growth | layoffs | other'
+        );
         process.exit(1);
       }
 
@@ -96,7 +98,9 @@ async function main(): Promise<void> {
         source,
       });
 
-      logger.success(`Signal added for ${company.name}: [${signalType}] "${detail}" (source: ${source})`);
+      logger.success(
+        `Signal added for ${company.name}: [${signalType}] "${detail}" (source: ${source})`
+      );
       return;
     }
 
@@ -113,7 +117,11 @@ async function main(): Promise<void> {
         if (signals.length === 0) {
           logger.info('No signals recorded.');
         } else {
-          signals.forEach((s) => logger.info(`  • [${s.signalType}] ${s.detail} (${s.seenAt})${s.url ? ` - ${s.url}` : ''}`));
+          signals.forEach((s) =>
+            logger.info(
+              `  • [${s.signalType}] ${s.detail} (${s.seenAt})${s.url ? ` - ${s.url}` : ''}`
+            )
+          );
         }
         return;
       }
@@ -134,7 +142,9 @@ async function main(): Promise<void> {
       return;
     }
 
-    logger.error('Unknown signal subcommand. Use: signal add <company> <type> <detail> [url] OR signal list [company]');
+    logger.error(
+      'Unknown signal subcommand. Use: signal add <company> <type> <detail> [url] OR signal list [company]'
+    );
     process.exit(1);
   }
 
@@ -246,14 +256,20 @@ async function main(): Promise<void> {
       } else {
         apps.forEach((a) => {
           const job = storage.getJobById(a.jobId);
-          logger.info(`  #${a.id} | Job #${a.jobId}: ${job?.title || 'Unknown'} @ ${job?.company || 'Unknown'}`);
-          logger.info(`     Applied: ${a.appliedAt} | Outcome: ${a.outcome || 'pending'} | Notes: ${a.notes || 'None'}`);
+          logger.info(
+            `  #${a.id} | Job #${a.jobId}: ${job?.title || 'Unknown'} @ ${job?.company || 'Unknown'}`
+          );
+          logger.info(
+            `     Applied: ${a.appliedAt} | Outcome: ${a.outcome || 'pending'} | Notes: ${a.notes || 'None'}`
+          );
         });
       }
       return;
     }
 
-    logger.error('Unknown application command. Use: application add <jobId> [notes] OR application list');
+    logger.error(
+      'Unknown application command. Use: application add <jobId> [notes] OR application list'
+    );
     process.exit(1);
   }
 
@@ -278,7 +294,9 @@ async function main(): Promise<void> {
         process.exit(1);
       }
       if (job.status === 'closed') {
-        logger.error(`Cannot draft outreach for closed job #${jobId} (${job.title} @ ${job.company}).`);
+        logger.error(
+          `Cannot draft outreach for closed job #${jobId} (${job.title} @ ${job.company}).`
+        );
         process.exit(1);
       }
       const company = storage.getCompanyById(contact.companyId) || {
@@ -290,7 +308,9 @@ async function main(): Promise<void> {
       const signals = storage.getSignalsForCompany(contact.companyId, { excludeDemo: !isDemo });
       const profile = readJsonFile<CandidateProfile>('./config/candidate-profile.json');
 
-      const pack = draftGen.generateDrafts(profile, job, contact, company, signals, { allowFillForDemo: isDemo });
+      const pack = draftGen.generateDrafts(profile, job, contact, company, signals, {
+        allowFillForDemo: isDemo,
+      });
 
       const idA = storage.addOutreach({
         contactId,
@@ -334,11 +354,15 @@ async function main(): Promise<void> {
         drafts.forEach((d) => {
           const contact = storage.getContactById(d.contactId);
           const lint = lintOutreachDraft(d.subject, d.body);
-          const lintTag = lint.valid ? '✅ [LINT: PASS]' : `⚠️ [LINT WARN: ${lint.warnings.join('; ')}]`;
+          const lintTag = lint.valid
+            ? '✅ [LINT: PASS]'
+            : `⚠️ [LINT WARN: ${lint.warnings.join('; ')}]`;
           logger.info(
             `  • #${d.id} [${d.status.toUpperCase()}] Var ${d.variant || 'A'} | To: ${contact?.fullName || 'Contact ' + d.contactId} (${contact?.email || 'no email'}) | ${lintTag}`
           );
-          logger.info(`     Subject: "${d.subject}" (${lint.subjectWordCount} words) | Body: ${lint.wordCount} words`);
+          logger.info(
+            `     Subject: "${d.subject}" (${lint.subjectWordCount} words) | Body: ${lint.wordCount} words`
+          );
           if (d.sentAt) logger.info(`     Sent: ${d.sentAt}`);
           if (d.error) logger.warn(`     Error: ${d.error}`);
         });
@@ -378,9 +402,14 @@ async function main(): Promise<void> {
       }
       const bypassTz = args.includes('--bypass-window') || args.includes('--force');
       const profile = readJsonFile<CandidateProfile>('./config/candidate-profile.json');
-      const res = await sendService.sendOutreach(id, profile, { bypassTimezone: bypassTz, allowDemo: isDemo });
+      const res = await sendService.sendOutreach(id, profile, {
+        bypassTimezone: bypassTz,
+        allowDemo: isDemo,
+      });
       if (res.success) {
-        logger.success(`Outreach #${id} sent successfully!${res.emlPath ? ` (Dry-run file: ${res.emlPath})` : ''}`);
+        logger.success(
+          `Outreach #${id} sent successfully!${res.emlPath ? ` (Dry-run file: ${res.emlPath})` : ''}`
+        );
       } else {
         logger.error(`Send failed for #${id}: ${res.error}`);
         process.exit(1);
@@ -421,7 +450,9 @@ async function main(): Promise<void> {
       } else {
         evals.forEach((e) => {
           if (e.eligible) {
-            logger.success(`Created follow-up draft #${e.createdFollowUpId} for ${e.recipientEmail} (Contact #${e.contactId})`);
+            logger.success(
+              `Created follow-up draft #${e.createdFollowUpId} for ${e.recipientEmail} (Contact #${e.contactId})`
+            );
           } else {
             logger.info(`Skipped Outreach #${e.outreachId} (${e.recipientEmail}): ${e.reason}`);
           }
@@ -434,7 +465,9 @@ async function main(): Promise<void> {
       const id = parseInt(args[2], 10);
       const outcome = (args[3] as any) || 'positive';
       if (!id) {
-        logger.error('Usage: npm run outreach reply <outreach-id> [positive|negative|interview|referral]');
+        logger.error(
+          'Usage: npm run outreach reply <outreach-id> [positive|negative|interview|referral]'
+        );
         process.exit(1);
       }
       const followUpService = new FollowUpService(storage);
@@ -442,14 +475,18 @@ async function main(): Promise<void> {
       return;
     }
 
-    logger.error('Unknown outreach command. Use: outreach list | outreach approve <id> | outreach edit <id> | outreach send <id> | outreach tailor <jobId> | outreach followups | outreach reply <id>');
+    logger.error(
+      'Unknown outreach command. Use: outreach list | outreach approve <id> | outreach edit <id> | outreach send <id> | outreach tailor <jobId> | outreach followups | outreach reply <id>'
+    );
     process.exit(1);
   }
 
   // ─── 8. CLI: Daily Digest ────────────────────────────────────
   if (flag === 'digest' || flag === '--digest') {
     const isDemo = process.env.DEMO_MODE === 'true' || args.includes('--demo');
-    const storage = isDemo ? new StorageService('./data/demo.db') : new StorageService('./data/jobhermes.db');
+    const storage = isDemo
+      ? new StorageService('./data/demo.db')
+      : new StorageService('./data/jobhermes.db');
 
     logger.section(`JobHermes SDET Copilot Daily Digest ${isDemo ? '[DEMO SANDBOX]' : '[LIVE]'}`);
     const allJobs = storage.getAllJobs();
@@ -462,7 +499,9 @@ async function main(): Promise<void> {
     const sentToday = storage.getDailySentCount();
     const bounceStats = storage.getRecentBounceStats();
 
-    logger.info(`📅 Date: ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`);
+    logger.info(
+      `📅 Date: ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`
+    );
     logger.info(`⏰ Next Scheduled Scan: 08:30 AM IST (Asia/Kolkata)`);
     logger.info('');
     logger.info(`📊 Job Opportunities:`);
@@ -477,13 +516,19 @@ async function main(): Promise<void> {
     logger.info(`✉️ Outreach Pipeline:`);
     logger.info(`  • Pending Approvals: ${pendingDrafts.length} drafts awaiting human review`);
     logger.info(`  • Sent Today: ${sentToday} / 20 max daily cap`);
-    logger.info(`  • Bounces: ${bounceStats.bounced} (Rate: ${(bounceStats.bounceRate * 100).toFixed(1)}%)`);
+    logger.info(
+      `  • Bounces: ${bounceStats.bounced} (Rate: ${(bounceStats.bounceRate * 100).toFixed(1)}%)`
+    );
     logger.info('');
 
     if (pendingDrafts.length > 0) {
-      logger.info('🎯 Action Needed: Run "npm run outreach list" to review and approve pending drafts.');
+      logger.info(
+        '🎯 Action Needed: Run "npm run outreach list" to review and approve pending drafts.'
+      );
     } else if (qualifiedJobs.length > 0 && contacts.length === 0) {
-      logger.info('🎯 Action Needed: Run "npm run contacts todo" to identify target human contacts for top jobs.');
+      logger.info(
+        '🎯 Action Needed: Run "npm run contacts todo" to identify target human contacts for top jobs.'
+      );
     } else {
       logger.info('✅ System running smoothly. All queues up to date.');
     }
@@ -495,7 +540,9 @@ async function main(): Promise<void> {
   // ─── 9. CLI: Data Export ─────────────────────────────────────
   if (flag === 'export' || flag === '--export') {
     const isDemo = process.env.DEMO_MODE === 'true' || args.includes('--demo');
-    const storage = isDemo ? new StorageService('./data/demo.db') : new StorageService('./data/jobhermes.db');
+    const storage = isDemo
+      ? new StorageService('./data/demo.db')
+      : new StorageService('./data/jobhermes.db');
     const exportType = args[1] || 'all';
     const format = args[2] || 'json';
 
@@ -509,7 +556,8 @@ async function main(): Promise<void> {
     if (exportType === 'all' || exportType === 'jobs') data.jobs = storage.getAllJobs();
     if (exportType === 'all' || exportType === 'contacts') data.contacts = storage.getAllContacts();
     if (exportType === 'all' || exportType === 'outreach') data.outreach = storage.getAllOutreach();
-    if (exportType === 'all' || exportType === 'applications') data.applications = storage.getApplications();
+    if (exportType === 'all' || exportType === 'applications')
+      data.applications = storage.getApplications();
 
     const fileName = `export-${exportType}-${timestamp}.${format === 'csv' ? 'csv' : 'json'}`;
     const filePath = path.join(exportDir, fileName);
@@ -518,7 +566,11 @@ async function main(): Promise<void> {
       const items = (data[exportType] || []) as Record<string, unknown>[];
       if (items.length > 0) {
         const headers = Object.keys(items[0]).join(',');
-        const rows = items.map((it) => Object.values(it).map((v) => `"${String(v || '').replace(/"/g, '""')}"`).join(','));
+        const rows = items.map((it) =>
+          Object.values(it)
+            .map((v) => `"${String(v || '').replace(/"/g, '""')}"`)
+            .join(',')
+        );
         fs.writeFileSync(filePath, [headers, ...rows].join('\n'), 'utf-8');
       } else {
         fs.writeFileSync(filePath, '', 'utf-8');
@@ -554,7 +606,9 @@ async function main(): Promise<void> {
   // ─── 11. CLI: Rescore Jobs ───────────────────────────────────
   if (flag === 'rescore' || flag === '--rescore') {
     const isDemo = process.env.DEMO_MODE === 'true' || args.includes('--demo');
-    const storage = isDemo ? new StorageService('./data/demo.db') : new StorageService('./data/jobhermes.db');
+    const storage = isDemo
+      ? new StorageService('./data/demo.db')
+      : new StorageService('./data/jobhermes.db');
     const profilePath = path.resolve('./config/candidate-profile.json');
     const profile: CandidateProfile = JSON.parse(fs.readFileSync(profilePath, 'utf-8'));
 
@@ -566,7 +620,9 @@ async function main(): Promise<void> {
     } else {
       for (const r of results) {
         logger.info(`Job #${r.jobId} "${r.title}" @ ${r.company}:`);
-        logger.info(`  • Score:  ${r.oldScore} -> ${r.newScore} (Hiring Signal: ${r.breakdown.hiringSignal})`);
+        logger.info(
+          `  • Score:  ${r.oldScore} -> ${r.newScore} (Hiring Signal: ${r.breakdown.hiringSignal})`
+        );
         logger.info(`  • Status: ${r.oldStatus} -> ${r.newStatus}`);
       }
       logger.success(`Rescored ${results.length} jobs successfully.`);
@@ -576,35 +632,165 @@ async function main(): Promise<void> {
     return;
   }
 
+  // ─── 12. CLI: First-Run Readiness Diagnostic ─────────────────
+  if (flag === 'first-run' || flag === '--first-run') {
+    const storage = new StorageService(dbPath);
+
+    logger.section('JobHermes First-Run Setup Diagnostic');
+    logger.info('Auditing configuration readiness and database assets...\n');
+
+    // 1. profile_reviewed
+    const profilePath = path.resolve('./config/candidate-profile.json');
+    let profileReviewed = false;
+    let profile: CandidateProfile | null = null;
+    if (fs.existsSync(profilePath)) {
+      try {
+        profile = JSON.parse(fs.readFileSync(profilePath, 'utf-8'));
+        profileReviewed = Boolean(profile?.profile_reviewed);
+      } catch {}
+    }
+    const profileStatus = profileReviewed
+      ? 'READY (Reviewed)'
+      : 'ACTION REQUIRED: skills list is assumed default; review config/candidate-profile.json and set "profile_reviewed": true';
+
+    // 2. [FILL] markers
+    let profileFillCount = 0;
+    let resumeFillCount = 0;
+    const resumePath = path.resolve('./config/base-resume.md');
+    if (profile) {
+      const pCheck = hasFillMarkers(profile);
+      profileFillCount = pCheck.markerPaths.length;
+    }
+    if (fs.existsSync(resumePath)) {
+      const rContent = fs.readFileSync(resumePath, 'utf-8');
+      resumeFillCount = (rContent.match(/\[FILL/g) || []).length;
+    }
+    const totalFill = profileFillCount + resumeFillCount;
+    const fillStatus =
+      totalFill === 0
+        ? 'READY (0 markers remaining)'
+        : `PENDING: ${totalFill} markers remaining (${profileFillCount} in candidate-profile.json, ${resumeFillCount} in base-resume.md)`;
+
+    // 3. number of verified companies
+    const targetsPath = path.resolve('./config/company-targets.json');
+    let totalCompanies = 0;
+    let verifiedCompanies = 0;
+    if (fs.existsSync(targetsPath)) {
+      try {
+        const targets: Array<{ enabled: boolean; verified: boolean }> = JSON.parse(
+          fs.readFileSync(targetsPath, 'utf-8')
+        );
+        totalCompanies = targets.length;
+        verifiedCompanies = targets.filter((t) => t.enabled && t.verified).length;
+      } catch {}
+    }
+    const companyStatus = `${verifiedCompanies} verified active targets (out of ${totalCompanies} configured)`;
+
+    // 4. contacts per qualified job
+    const topJobs = storage.getTopJobs(100, 60);
+    const qualifiedCount = topJobs.length;
+    let qualifiedWithContacts = 0;
+    let totalContactsForQualified = 0;
+    for (const job of topJobs) {
+      const comp = storage.getCompanyByName(job.company);
+      if (comp && comp.id) {
+        const contacts = storage.getContactsForCompany(comp.id);
+        if (contacts.length > 0) {
+          qualifiedWithContacts++;
+          totalContactsForQualified += contacts.length;
+        }
+      }
+    }
+    const avgContacts =
+      qualifiedCount > 0 ? (totalContactsForQualified / qualifiedCount).toFixed(1) : '0';
+    const contactsStatus =
+      qualifiedCount > 0
+        ? `${qualifiedWithContacts}/${qualifiedCount} qualified jobs have >= 1 contact (${avgContacts} avg contacts per job)`
+        : '0 qualified jobs in database (run a scan first)';
+
+    // 5. research briefs
+    const allDbCompanies = storage.getAllCompanies();
+    const withBrief = allDbCompanies.filter((c) => Boolean(c.researchBrief)).length;
+    const briefStatus = `${withBrief}/${allDbCompanies.length} tracked companies have research briefs`;
+
+    console.log('============================================================');
+    console.log('               FIRST-RUN READINESS REPORT                   ');
+    console.log('============================================================');
+    console.log(`  Profile Review State    : ${profileStatus}`);
+    console.log(`  [FILL] Placeholder State: ${fillStatus}`);
+    console.log(`  Verified Target Targets : ${companyStatus}`);
+    console.log(`  Contacts / Qualified Job: ${contactsStatus}`);
+    console.log(`  Company Research Briefs : ${briefStatus}`);
+    console.log('============================================================\n');
+    logger.info('Note: first-run diagnostic only reports system readiness and refuses nothing.');
+
+    storage.close();
+    return;
+  }
+
   if (flag === '--help' || flag === '-h') {
     logger.section('JobHermes SDET Copilot CLI Usage');
     logger.info('Options:');
-    logger.info('  verify-targets                        Hit all ATS APIs in company-targets.json & report status');
-    logger.info('  add-company <careers-url>             Detect ATS, slug, verify API, and save target');
-    logger.info('  doctor                                Diagnostic check on candidate profile and system state');
-    logger.info('  signal add <company> <type> <detail>  Record company growth/hiring signal for score bonus');
+    logger.info(
+      '  verify-targets                        Hit all ATS APIs in company-targets.json & report status'
+    );
+    logger.info(
+      '  add-company <careers-url>             Detect ATS, slug, verify API, and save target'
+    );
+    logger.info(
+      '  doctor                                Diagnostic check on candidate profile and system state'
+    );
+    logger.info(
+      '  signal add <company> <type> <detail>  Record company growth/hiring signal for score bonus'
+    );
     logger.info('  signal list [company]                 Display company signals');
-    logger.info('  import-contacts <csv-path>            Import contacts with roles, emails, and timezones');
+    logger.info(
+      '  import-contacts <csv-path>            Import contacts with roles, emails, and timezones'
+    );
     logger.info('  contacts verify <id>                  Mark contact email as verified');
-    logger.info('  contacts list [company]               List saved contacts and outreach readiness');
-    logger.info('  contacts todo                         List companies needing contact discovery with persona rules');
+    logger.info(
+      '  contacts list [company]               List saved contacts and outreach readiness'
+    );
+    logger.info(
+      '  contacts todo                         List companies needing contact discovery with persona rules'
+    );
     logger.info('  application add <job-id> [notes]      Record direct manual application');
     logger.info('  application list                      View direct application history');
-    logger.info('  outreach generate <jobId> <contactId> Generate fact-grounded A/B cold drafts + LinkedIn DM');
-    logger.info('  outreach list [status]                List outreach queue and approval statuses');
+    logger.info(
+      '  outreach generate <jobId> <contactId> Generate fact-grounded A/B cold drafts + LinkedIn DM'
+    );
+    logger.info(
+      '  outreach list [status]                List outreach queue and approval statuses'
+    );
     logger.info('  outreach approve <id>                 Approve an outreach draft for sending');
     logger.info('  outreach edit <id> <subj> <body>      Edit outreach subject and body');
-    logger.info('  outreach send <id>                    Safely send approved outreach (writes .eml in dry-run mode)');
-    logger.info('  --scan                                Run an immediate job scan across active ATS sources');
-    logger.info('  --scan --all-titles                   List all QA/test titles across sources regardless of score');
+    logger.info(
+      '  outreach send <id>                    Safely send approved outreach (writes .eml in dry-run mode)'
+    );
+    logger.info(
+      '  --scan                                Run an immediate job scan across active ATS sources'
+    );
+    logger.info(
+      '  --scan --all-titles                   List all QA/test titles across sources regardless of score'
+    );
     logger.info('  --resume <job-id>                     Generate a tailored resume for a job');
-    logger.info('  --cover-letter <job-id> [tone]        Generate a tailored cover letter (professional | enthusiastic | concise)');
-    logger.info('  --apply <job-id> [tone]               Generate application pack (resume + cover letter)');
-    logger.info('  --status                              Display database statistics and top matched jobs');
-    logger.info('  --dashboard                           Start the local Web Dashboard (127.0.0.1:3000)');
+    logger.info(
+      '  --cover-letter <job-id> [tone]        Generate a tailored cover letter (professional | enthusiastic | concise)'
+    );
+    logger.info(
+      '  --apply <job-id> [tone]               Generate application pack (resume + cover letter)'
+    );
+    logger.info(
+      '  --status                              Display database statistics and top matched jobs'
+    );
+    logger.info(
+      '  --dashboard                           Start the local Web Dashboard (127.0.0.1:3000)'
+    );
     logger.info('  --help, -h                            Show this help menu');
     logger.info('');
-    logger.info('Note: If no arguments are provided, JobHermes runs in daemon mode (scheduled scans) and starts the dashboard.');
+    logger.info(
+      'Note: If no arguments are provided, JobHermes runs in daemon mode (scheduled scans) and starts the dashboard.'
+    );
     return;
   }
 

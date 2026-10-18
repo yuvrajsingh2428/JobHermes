@@ -37,16 +37,20 @@ describe('Experience Parser Unit Tests', () => {
 
   it('detects fresher and entry level keywords', () => {
     expect(parseExperienceRequirement('We welcome freshers for this QA role').isFresher).toBe(true);
-    expect(parseExperienceRequirement('Entry-level software engineer in test').isFresher).toBe(true);
+    expect(parseExperienceRequirement('Entry-level software engineer in test').isFresher).toBe(
+      true
+    );
   });
 
   it('handles JDs with no experience mentioned gracefully', () => {
-    expect(parseExperienceRequirement('Passionate about testing and automated frameworks')).toEqual({
-      minYears: null,
-      maxYears: null,
-      rawMatch: null,
-      isFresher: false,
-    });
+    expect(parseExperienceRequirement('Passionate about testing and automated frameworks')).toEqual(
+      {
+        minYears: null,
+        maxYears: null,
+        rawMatch: null,
+        isFresher: false,
+      }
+    );
   });
 });
 
@@ -78,6 +82,10 @@ describe('Salary Parser Unit Tests', () => {
 
   it('returns nulls for missing or unparseable salaries', () => {
     expect(parseSalaryLPA(undefined)).toEqual({ minLpa: null, maxLpa: null, rawMatch: null });
-    expect(parseSalaryLPA('Competitive benefits package')).toEqual({ minLpa: null, maxLpa: null, rawMatch: null });
+    expect(parseSalaryLPA('Competitive benefits package')).toEqual({
+      minLpa: null,
+      maxLpa: null,
+      rawMatch: null,
+    });
   });
 });

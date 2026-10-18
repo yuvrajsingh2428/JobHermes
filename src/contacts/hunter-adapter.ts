@@ -60,8 +60,13 @@ export class HunterAdapter {
     const month = this.getCurrentMonth();
     const currentUsage = this.storage.getApiUsage('hunter', month);
     if (currentUsage >= this.monthlyCap) {
-      logger.warn(`Hunter.io monthly quota cap (${this.monthlyCap}) reached for ${month}. Refusing call.`);
-      return { allowed: false, reason: `Monthly cap of ${this.monthlyCap} calls reached for ${month}` };
+      logger.warn(
+        `Hunter.io monthly quota cap (${this.monthlyCap}) reached for ${month}. Refusing call.`
+      );
+      return {
+        allowed: false,
+        reason: `Monthly cap of ${this.monthlyCap} calls reached for ${month}`,
+      };
     }
 
     return { allowed: true };
@@ -80,7 +85,10 @@ export class HunterAdapter {
     const apiKey = this.getApiKey();
     const url = `https://api.hunter.io/v2/domain-search?domain=${encodeURIComponent(domain)}&api_key=${apiKey}`;
     try {
-      const res = await httpClient.get<any>(url, { useCache: true, cacheTtlMs: 24 * 60 * 60 * 1000 });
+      const res = await httpClient.get<any>(url, {
+        useCache: true,
+        cacheTtlMs: 24 * 60 * 60 * 1000,
+      });
       if (res.status === 200 && res.data?.data) {
         if (!res.fromCache) this.recordCall();
         const data = res.data.data;
@@ -104,7 +112,11 @@ export class HunterAdapter {
     }
   }
 
-  async emailFinder(domain: string, firstName: string, lastName: string): Promise<HunterEmailFinderResult | null> {
+  async emailFinder(
+    domain: string,
+    firstName: string,
+    lastName: string
+  ): Promise<HunterEmailFinderResult | null> {
     const check = this.canMakeCall();
     if (!check.allowed) return null;
 
@@ -122,7 +134,9 @@ export class HunterAdapter {
       }
       return null;
     } catch (err: any) {
-      logger.warn(`Hunter emailFinder error for ${firstName} ${lastName} @ ${domain}`, { error: err.message });
+      logger.warn(`Hunter emailFinder error for ${firstName} ${lastName} @ ${domain}`, {
+        error: err.message,
+      });
       return null;
     }
   }
@@ -139,7 +153,12 @@ export class HunterAdapter {
         const data = res.data.data;
         return {
           email,
-          status: data.result === 'deliverable' ? 'valid' : data.result === 'undeliverable' ? 'invalid' : 'unknown',
+          status:
+            data.result === 'deliverable'
+              ? 'valid'
+              : data.result === 'undeliverable'
+                ? 'invalid'
+                : 'unknown',
           score: data.score,
         };
       }

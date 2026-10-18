@@ -7,7 +7,13 @@ import { DraftGenerator, lintOutreachDraft } from '../../src/outreach/draft-gene
 import { FollowUpService } from '../../src/outreach/follow-up-service';
 import { ResumeTailor } from '../../src/outreach/resume-tailor';
 import { ScoringService } from '../../src/scoring/scorer';
-import { CandidateProfile, ContactRecord, JobPosting, CompanyRecord, SignalRecord } from '../../src/types';
+import {
+  CandidateProfile,
+  ContactRecord,
+  JobPosting,
+  CompanyRecord,
+  SignalRecord,
+} from '../../src/types';
 
 describe('Phase 3 Outreach Engine, Safety Rails & Grounding Tests', () => {
   let storage: StorageService;
@@ -71,8 +77,8 @@ describe('Phase 3 Outreach Engine, Safety Rails & Grounding Tests', () => {
       'Designed scalable API testing pipelines in Jenkins',
     ],
     achievements: [
-      'built automated regression suites reducing manual test cycles by 60%',
-      'Architected API test coverage from 20% to 90%',
+      'built automated regression suites scaling test coverage across services',
+      'architected API test automation framework for backend microservices',
     ],
     links: {
       linkedin: 'https://linkedin.com/in/yuvrajsingh',
@@ -87,7 +93,8 @@ describe('Phase 3 Outreach Engine, Safety Rails & Grounding Tests', () => {
     location: 'Bangalore',
     isRemote: false,
     url: 'https://job-boards.greenhouse.io/hackerrank/jobs/8155938',
-    description: 'Looking for SDET with Java, Playwright, Selenium, REST Assured, Jenkins, Docker, Postman, API Testing.',
+    description:
+      'Looking for SDET with Java, Playwright, Selenium, REST Assured, Jenkins, Docker, Postman, API Testing.',
     scrapedAt: new Date().toISOString(),
     source: 'greenhouse',
     status: 'new',
@@ -101,7 +108,16 @@ describe('Phase 3 Outreach Engine, Safety Rails & Grounding Tests', () => {
       hiringSignal: 0,
       salaryMatch: 0,
       total: 85,
-      matchedSkills: ['Java', 'Playwright', 'Selenium', 'REST Assured', 'Jenkins', 'Postman', 'Docker', 'API Testing'],
+      matchedSkills: [
+        'Java',
+        'Playwright',
+        'Selenium',
+        'REST Assured',
+        'Jenkins',
+        'Postman',
+        'Docker',
+        'API Testing',
+      ],
       missingSkills: ['Kubernetes', 'AWS'],
       reasons: ['SDET title match', 'Skills 8/10 matched'],
       stretch: false,
@@ -128,7 +144,7 @@ describe('Phase 3 Outreach Engine, Safety Rails & Grounding Tests', () => {
   describe('Send-Window Guard (Item 1)', () => {
     it('blocks sending outside business hours (21:00 / 9 PM local time) in both real and dry-run modes', () => {
       const realService = new SendService(storage, 20, false); // Real mode
-      const dryService = new SendService(storage, 20, true);   // Dry-run mode
+      const dryService = new SendService(storage, 20, true); // Dry-run mode
 
       const contact = storage.getContactById(testContactId)!; // timezone = 'Asia/Kolkata'
       const outreachId = storage.addOutreach({
@@ -143,11 +159,17 @@ describe('Phase 3 Outreach Engine, Safety Rails & Grounding Tests', () => {
       // 2026-10-14T15:30:00Z is 21:00 (9:00 PM) in Asia/Kolkata (outside 09:00 - 18:00)
       const afterHoursDate = new Date('2026-10-14T15:30:00Z');
 
-      const realCheck = realService.canSend(outreach, contact, { now: afterHoursDate, profile: validProfile });
+      const realCheck = realService.canSend(outreach, contact, {
+        now: afterHoursDate,
+        profile: validProfile,
+      });
       expect(realCheck.allowed).toBe(false);
       expect(realCheck.reason).toMatch(/Outside business hours/i);
 
-      const dryCheck = dryService.canSend(outreach, contact, { now: afterHoursDate, profile: validProfile });
+      const dryCheck = dryService.canSend(outreach, contact, {
+        now: afterHoursDate,
+        profile: validProfile,
+      });
       expect(dryCheck.allowed).toBe(false);
       expect(dryCheck.reason).toMatch(/Outside business hours/i);
     });
@@ -169,11 +191,17 @@ describe('Phase 3 Outreach Engine, Safety Rails & Grounding Tests', () => {
       // 2026-10-18T06:00:00Z is Sunday 11:30 AM in Asia/Kolkata
       const sundayDate = new Date('2026-10-18T06:00:00Z');
 
-      const realCheck = realService.canSend(outreach, contact, { now: sundayDate, profile: validProfile });
+      const realCheck = realService.canSend(outreach, contact, {
+        now: sundayDate,
+        profile: validProfile,
+      });
       expect(realCheck.allowed).toBe(false);
       expect(realCheck.reason).toMatch(/Outside business days \(Sun\)/i);
 
-      const dryCheck = dryService.canSend(outreach, contact, { now: sundayDate, profile: validProfile });
+      const dryCheck = dryService.canSend(outreach, contact, {
+        now: sundayDate,
+        profile: validProfile,
+      });
       expect(dryCheck.allowed).toBe(false);
       expect(dryCheck.reason).toMatch(/Outside business days \(Sun\)/i);
     });
@@ -203,22 +231,36 @@ describe('Phase 3 Outreach Engine, Safety Rails & Grounding Tests', () => {
 
       // 10:00 UTC on a Wednesday: In NY (EDT, UTC-4), this is 06:00 AM (Outside 09:00 - 18:00)
       const nyEarlyMorning = new Date('2026-10-14T10:00:00Z');
-      const earlyCheckReal = realService.canSend(outreach, contact, { now: nyEarlyMorning, profile: validProfile, baseResumePath: cleanResumePath });
+      const earlyCheckReal = realService.canSend(outreach, contact, {
+        now: nyEarlyMorning,
+        profile: validProfile,
+        baseResumePath: cleanResumePath,
+      });
       expect(earlyCheckReal.allowed).toBe(false);
       expect(earlyCheckReal.reason).toMatch(/America\/New_York/);
       expect(earlyCheckReal.reason).toMatch(/06:00/);
 
-      const earlyCheckDry = dryService.canSend(outreach, contact, { now: nyEarlyMorning, profile: validProfile });
+      const earlyCheckDry = dryService.canSend(outreach, contact, {
+        now: nyEarlyMorning,
+        profile: validProfile,
+      });
       expect(earlyCheckDry.allowed).toBe(false);
       expect(earlyCheckDry.reason).toMatch(/America\/New_York/);
       expect(earlyCheckDry.reason).toMatch(/06:00/);
 
       // 15:30 UTC on a Wednesday: In NY (EDT, UTC-4), this is 11:30 AM (Inside business hours!)
       const nyBusinessHours = new Date('2026-10-14T15:30:00Z');
-      const validCheckReal = realService.canSend(outreach, contact, { now: nyBusinessHours, profile: validProfile, baseResumePath: cleanResumePath });
+      const validCheckReal = realService.canSend(outreach, contact, {
+        now: nyBusinessHours,
+        profile: validProfile,
+        baseResumePath: cleanResumePath,
+      });
       expect(validCheckReal.allowed).toBe(true);
 
-      const validCheckDry = dryService.canSend(outreach, contact, { now: nyBusinessHours, profile: validProfile });
+      const validCheckDry = dryService.canSend(outreach, contact, {
+        now: nyBusinessHours,
+        profile: validProfile,
+      });
       expect(validCheckDry.allowed).toBe(true);
     });
   });
@@ -352,6 +394,52 @@ describe('Phase 3 Outreach Engine, Safety Rails & Grounding Tests', () => {
       expect(lint.warnings.some((w) => w.includes('Missing concrete proof point'))).toBe(true);
       expect(lint.warnings.some((w) => w.includes('Missing polite opt-out line'))).toBe(true);
     });
+
+    it('refuses to generate real-mode drafts if achievements contain [FILL] placeholders or demo sandbox values', () => {
+      const demoProfile: CandidateProfile = {
+        ...validProfile,
+        achievements: [
+          'built automated regression suites reducing manual test cycles by 60%',
+          'built hybrid automation framework reducing execution time by 45%',
+        ],
+      };
+
+      const contact = storage.getContactById(testContactId)!;
+      expect(() => {
+        generator.generateDrafts(demoProfile, sampleJob, contact, sampleCompany, [], {
+          allowFillForDemo: false,
+        });
+      }).toThrow(/placeholders or demo values/);
+
+      const fillProfile: CandidateProfile = {
+        ...validProfile,
+        achievements: ['[FILL: e.g. Designed and implemented REST Assured API test suite]'],
+      };
+      expect(() => {
+        generator.generateDrafts(fillProfile, sampleJob, contact, sampleCompany, [], {
+          allowFillForDemo: false,
+        });
+      }).toThrow(/placeholders or demo values|unresolved \[FILL\] markers/);
+    });
+
+    it('uses profile fields verbatim in candidate sentences without generated purpose clauses', () => {
+      const contact = storage.getContactById(testContactId)!;
+      const pack = generator.generateDrafts(validProfile, sampleJob, contact, sampleCompany, [], {
+        allowFillForDemo: false,
+      });
+
+      // Verbatim achievement inclusion
+      expect(pack.variantA.body).toContain(
+        'built automated regression suites scaling test coverage across services'
+      );
+      expect(pack.variantB.body).toContain(
+        'built automated regression suites scaling test coverage across services'
+      );
+
+      // No added purpose clauses
+      expect(pack.variantA.body).not.toContain('to prevent defects before production deployment');
+      expect(pack.variantB.body).not.toContain('to accelerate testing feedback');
+    });
   });
 
   // ─── 4. Resume Tailor Verification (Item 5) ──────────────────
@@ -359,12 +447,9 @@ describe('Phase 3 Outreach Engine, Safety Rails & Grounding Tests', () => {
     const tailor = new ResumeTailor();
 
     it('cannot add skills or numbers not present in base resume', () => {
-      const tailored = tailor.tailorResume(
-        './config/base-resume.md',
-        sampleJob,
-        validProfile,
-        { allowFillForDemo: true }
-      );
+      const tailored = tailor.tailorResume('./config/base-resume.md', sampleJob, validProfile, {
+        allowFillForDemo: true,
+      });
 
       const baseContent = fs.readFileSync(path.resolve('./config/base-resume.md'), 'utf-8');
 
@@ -378,7 +463,10 @@ describe('Phase 3 Outreach Engine, Safety Rails & Grounding Tests', () => {
       expect(tailored.tailoredMarkdown).not.toContain('AWS');
 
       // Every bullet line in the tailored output MUST exist in the base resume
-      const tailoredLines = tailored.tailoredMarkdown.split(/\r?\n/).map((l) => l.trim()).filter((l) => l.startsWith('- ') || l.startsWith('* '));
+      const tailoredLines = tailored.tailoredMarkdown
+        .split(/\r?\n/)
+        .map((l) => l.trim())
+        .filter((l) => l.startsWith('- ') || l.startsWith('* '));
       const baseLines = baseContent.split(/\r?\n/).map((l) => l.trim());
 
       for (const bullet of tailoredLines) {
@@ -387,7 +475,10 @@ describe('Phase 3 Outreach Engine, Safety Rails & Grounding Tests', () => {
     });
 
     it('computes keyword gap directly against base resume content (e.g. JD asks for TypeScript and Cucumber)', () => {
-      const resumeFixturePath = path.resolve(__dirname, '../fixtures/resume-without-ts-cucumber.md');
+      const resumeFixturePath = path.resolve(
+        __dirname,
+        '../fixtures/resume-without-ts-cucumber.md'
+      );
       fs.writeFileSync(
         resumeFixturePath,
         '# Test Candidate\n\n## Technical Skills\n- **Languages:** Java, Python\n- **Automation:** Selenium WebDriver, REST Assured\n',
@@ -398,7 +489,8 @@ describe('Phase 3 Outreach Engine, Safety Rails & Grounding Tests', () => {
         const jdWithTsAndCucumber: JobPosting = {
           ...sampleJob,
           title: 'Senior SDET',
-          description: 'Looking for strong TypeScript and Cucumber (BDD) automation skills along with Selenium and REST Assured.',
+          description:
+            'Looking for strong TypeScript and Cucumber (BDD) automation skills along with Selenium and REST Assured.',
           skills: ['TypeScript', 'Cucumber (BDD)', 'Selenium', 'REST Assured'],
         };
 
@@ -434,8 +526,19 @@ describe('Phase 3 Outreach Engine, Safety Rails & Grounding Tests', () => {
         ...sampleJob,
         title: 'Software Development Engineer in Test II',
         company: 'HackerRank',
-        description: 'Looking for SDET with Java, Playwright, Selenium, REST Assured, Jenkins, Docker, Postman, API Testing, and CI/CD pipelines.',
-        skills: ['Java', 'Playwright', 'Selenium', 'REST Assured', 'Jenkins', 'Postman', 'Docker', 'API Testing', 'CI/CD Integration'],
+        description:
+          'Looking for SDET with Java, Playwright, Selenium, REST Assured, Jenkins, Docker, Postman, API Testing, and CI/CD pipelines.',
+        skills: [
+          'Java',
+          'Playwright',
+          'Selenium',
+          'REST Assured',
+          'Jenkins',
+          'Postman',
+          'Docker',
+          'API Testing',
+          'CI/CD Integration',
+        ],
       };
 
       const result = tailor.tailorResume('./config/base-resume.md', hackerRankJob, validProfile, {
@@ -479,7 +582,7 @@ describe('Phase 3 Outreach Engine, Safety Rails & Grounding Tests', () => {
       expect(createdDraft.status).toBe('draft'); // Strictly awaiting human approval!
       expect(createdDraft.type).toBe('follow_up_1');
       expect(createdDraft.subject).toBe('Re: SDET automation @ HackerRank');
-      expect(createdDraft.body).toContain("Following up briefly on my note below");
+      expect(createdDraft.body).toContain('Following up briefly on my note below');
     });
 
     it('stops follow-up cadence if contact has already replied', () => {
@@ -564,7 +667,10 @@ describe('Phase 3 Outreach Engine, Safety Rails & Grounding Tests', () => {
       });
       const outreach = storage.getOutreachById(outreachId)!;
 
-      const check = realService.canSend(outreach, contact, { now: validSendTime, profile: validProfile });
+      const check = realService.canSend(outreach, contact, {
+        now: validSendTime,
+        profile: validProfile,
+      });
       expect(check.allowed).toBe(false);
       expect(check.reason).toMatch(/not approved/i);
     });
@@ -589,7 +695,10 @@ describe('Phase 3 Outreach Engine, Safety Rails & Grounding Tests', () => {
       });
       const outreach = storage.getOutreachById(outreachId)!;
 
-      const check = realService.canSend(outreach, contact, { now: validSendTime, profile: validProfile });
+      const check = realService.canSend(outreach, contact, {
+        now: validSendTime,
+        profile: validProfile,
+      });
       expect(check.allowed).toBe(false);
       expect(check.reason).toMatch(/email is not verified/i);
     });
@@ -615,7 +724,10 @@ describe('Phase 3 Outreach Engine, Safety Rails & Grounding Tests', () => {
       });
       const outreach = storage.getOutreachById(outreachId)!;
 
-      const check = realService.canSend(outreach, contact, { now: validSendTime, profile: validProfile });
+      const check = realService.canSend(outreach, contact, {
+        now: validSendTime,
+        profile: validProfile,
+      });
       expect(check.allowed).toBe(false);
       expect(check.reason).toMatch(/demo\/sample source/i);
     });
@@ -633,7 +745,10 @@ describe('Phase 3 Outreach Engine, Safety Rails & Grounding Tests', () => {
       });
       const outreach = storage.getOutreachById(outreachId)!;
 
-      const check = realService.canSend(outreach, contact, { now: validSendTime, profile: validProfile });
+      const check = realService.canSend(outreach, contact, {
+        now: validSendTime,
+        profile: validProfile,
+      });
       expect(check.allowed).toBe(false);
       expect(check.reason).toMatch(/suppression list/i);
     });
@@ -660,7 +775,10 @@ describe('Phase 3 Outreach Engine, Safety Rails & Grounding Tests', () => {
       });
       const outreach = storage.getOutreachById(outreachId)!;
 
-      const check = realService.canSend(outreach, contact, { now: validSendTime, profile: validProfile });
+      const check = realService.canSend(outreach, contact, {
+        now: validSendTime,
+        profile: validProfile,
+      });
       expect(check.allowed).toBe(false);
       expect(check.reason).toMatch(/Daily send cap/i);
     });
@@ -697,7 +815,10 @@ describe('Phase 3 Outreach Engine, Safety Rails & Grounding Tests', () => {
       });
       const outreach = storage.getOutreachById(outreachId)!;
 
-      const check = realService.canSend(outreach, contact, { now: validSendTime, profile: validProfile });
+      const check = realService.canSend(outreach, contact, {
+        now: validSendTime,
+        profile: validProfile,
+      });
       expect(check.allowed).toBe(false);
       expect(check.reason).toMatch(/Bounce circuit breaker triggered/i);
     });
@@ -715,7 +836,10 @@ describe('Phase 3 Outreach Engine, Safety Rails & Grounding Tests', () => {
 
       // 22:00 in Asia/Kolkata
       const lateNight = new Date('2026-10-14T16:30:00Z');
-      const check = realService.canSend(outreach, contact, { now: lateNight, profile: validProfile });
+      const check = realService.canSend(outreach, contact, {
+        now: lateNight,
+        profile: validProfile,
+      });
       expect(check.allowed).toBe(false);
       expect(check.reason).toMatch(/Outside business hours/i);
     });
@@ -736,7 +860,10 @@ describe('Phase 3 Outreach Engine, Safety Rails & Grounding Tests', () => {
         name: '[FILL: Full Name]',
       };
 
-      const check = realService.canSend(outreach, contact, { now: validSendTime, profile: fillProfile });
+      const check = realService.canSend(outreach, contact, {
+        now: validSendTime,
+        profile: fillProfile,
+      });
       expect(check.allowed).toBe(false);
       expect(check.reason).toMatch(/contains unresolved \[FILL\] markers/i);
     });
@@ -780,7 +907,8 @@ describe('Phase 3 Outreach Engine, Safety Rails & Grounding Tests', () => {
         title: 'SDET II',
         company: 'Postman',
         location: 'Bangalore',
-        description: 'Skills: Java, Python, TypeScript, Selenium, Playwright, REST Assured, Jenkins, Docker, Git, TestNG',
+        description:
+          'Skills: Java, Python, TypeScript, Selenium, Playwright, REST Assured, Jenkins, Docker, Git, TestNG',
         source: 'greenhouse',
         url: 'https://greenhouse.io/test2',
         scrapedAt: new Date().toISOString(),

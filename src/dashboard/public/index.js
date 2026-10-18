@@ -98,11 +98,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // ─── Global Initial Load ──────────────────────────────────
   async function refreshAll() {
     await initAuth();
-    await Promise.all([
-      loadStats(),
-      loadProfile(),
-      checkScanStatus(),
-    ]);
+    await Promise.all([loadStats(), loadProfile(), checkScanStatus()]);
     switchTab(state.activeTab);
   }
 
@@ -220,7 +216,9 @@ document.addEventListener('DOMContentLoaded', () => {
       if (drafts.length === 0) {
         listEl.innerHTML = `<div class="empty-state">No drafts awaiting approval right now. All caught up!</div>`;
       } else {
-        listEl.innerHTML = drafts.map((d) => `
+        listEl.innerHTML = drafts
+          .map(
+            (d) => `
           <div class="card p-3 flex justify-between items-center" style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 12px 16px;">
             <div>
               <div style="font-weight: 600; color: #fff;">${d.subject}</div>
@@ -230,7 +228,9 @@ document.addEventListener('DOMContentLoaded', () => {
               <button class="btn btn-sm btn-primary" onclick="quickApproveOutreach(${d.id})">Approve</button>
             </div>
           </div>
-        `).join('');
+        `
+          )
+          .join('');
       }
     } catch (err) {
       console.error(err);
@@ -247,7 +247,9 @@ document.addEventListener('DOMContentLoaded', () => {
       if (jobs.length === 0) {
         listEl.innerHTML = `<div class="empty-state">No fresh matches today. Start a scan to discover fresh postings.</div>`;
       } else {
-        listEl.innerHTML = jobs.map((j) => `
+        listEl.innerHTML = jobs
+          .map(
+            (j) => `
           <div class="card p-3 flex justify-between items-center" style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 12px 16px;">
             <div>
               <div style="font-weight: 600; color: #fff;">${j.title}</div>
@@ -258,7 +260,9 @@ document.addEventListener('DOMContentLoaded', () => {
               <a href="${j.url}" target="_blank" rel="noopener" class="btn btn-sm btn-secondary">Apply</a>
             </div>
           </div>
-        `).join('');
+        `
+          )
+          .join('');
       }
     } catch (err) {
       console.error(err);
@@ -356,18 +360,34 @@ document.addEventListener('DOMContentLoaded', () => {
         </div>
 
         <div style="display: flex; flex-wrap: wrap; gap: 6px;">
-          ${matchedSkills.slice(0, 6).map((s) => `<span style="font-size: 11px; padding: 2px 8px; border-radius: 4px; background: rgba(16, 185, 129, 0.15); color: #34d399;">✓ ${s}</span>`).join('')}
-          ${missingSkills.slice(0, 3).map((s) => `<span style="font-size: 11px; padding: 2px 8px; border-radius: 4px; background: rgba(239, 68, 68, 0.1); color: #f87171;">✕ ${s}</span>`).join('')}
+          ${matchedSkills
+            .slice(0, 6)
+            .map(
+              (s) =>
+                `<span style="font-size: 11px; padding: 2px 8px; border-radius: 4px; background: rgba(16, 185, 129, 0.15); color: #34d399;">✓ ${s}</span>`
+            )
+            .join('')}
+          ${missingSkills
+            .slice(0, 3)
+            .map(
+              (s) =>
+                `<span style="font-size: 11px; padding: 2px 8px; border-radius: 4px; background: rgba(239, 68, 68, 0.1); color: #f87171;">✕ ${s}</span>`
+            )
+            .join('')}
         </div>
 
-        ${reasons.length > 0 ? `
+        ${
+          reasons.length > 0
+            ? `
           <details style="background: rgba(0,0,0,0.2); padding: 10px 14px; border-radius: var(--radius-sm); font-size: 12px; color: var(--text-muted);">
             <summary style="cursor: pointer; font-weight: 600; color: #cbd5e1;">View Scoring Breakdown (${reasons.length} criteria)</summary>
             <ul style="margin-top: 8px; padding-left: 18px; line-height: 1.6;">
               ${reasons.map((r) => `<li>${r}</li>`).join('')}
             </ul>
           </details>
-        ` : ''}
+        `
+            : ''
+        }
 
         <div style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 14px; margin-top: auto;">
           <div style="display: flex; gap: 8px;">
@@ -383,10 +403,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // ─── 3. COMPANIES & SIGNALS VIEW CONTROLLER ─────────────────
   async function loadCompaniesData() {
     try {
-      const [resComp, resSig] = await Promise.all([
-        fetch('/api/companies'),
-        fetch('/api/signals'),
-      ]);
+      const [resComp, resSig] = await Promise.all([fetch('/api/companies'), fetch('/api/signals')]);
       const companies = await resComp.json();
       const signals = await resSig.json();
       state.companies = companies;
@@ -395,7 +412,9 @@ document.addEventListener('DOMContentLoaded', () => {
       // Render Targets Table
       const tbody = document.getElementById('targets-table-body');
       document.getElementById('targets-count-badge').textContent = `${companies.length} targets`;
-      tbody.innerHTML = companies.map((c) => `
+      tbody.innerHTML = companies
+        .map(
+          (c) => `
         <tr>
           <td><strong>${c.name}</strong><br><span style="font-size: 11px; color: var(--text-muted);">${c.domain}</span></td>
           <td><span class="badge" style="background: rgba(255,255,255,0.05); padding: 2px 8px; border-radius: 4px;">${c.ats?.toUpperCase()}</span> ${c.slug || ''}</td>
@@ -403,12 +422,16 @@ document.addEventListener('DOMContentLoaded', () => {
           <td>${c.sizeBucket?.toUpperCase() || 'MID'}</td>
           <td><span class="badge" style="background: rgba(99,102,241,0.15); color: #818cf8; padding: 2px 8px; border-radius: 9999px;">${c.signalCount || 0} signals</span></td>
         </tr>
-      `).join('');
+      `
+        )
+        .join('');
 
       // Populate select in Add Contact modal
       const compSelect = document.getElementById('contact-company-id');
       if (compSelect) {
-        compSelect.innerHTML = companies.map((c) => `<option value="${c.id || 1}">${c.name} (${c.domain})</option>`).join('');
+        compSelect.innerHTML = companies
+          .map((c) => `<option value="${c.id || 1}">${c.name} (${c.domain})</option>`)
+          .join('');
       }
 
       // Render Signals List
@@ -417,7 +440,9 @@ document.addEventListener('DOMContentLoaded', () => {
       if (signals.length === 0) {
         sigList.innerHTML = `<div class="empty-state">No company growth signals recorded yet. Click "Record Signal" to add funding, expansion, or hiring surges.</div>`;
       } else {
-        sigList.innerHTML = signals.map((s) => `
+        sigList.innerHTML = signals
+          .map(
+            (s) => `
           <div class="card p-3" style="background: rgba(255,255,255,0.02); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 12px 14px;">
             <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
               <strong>${s.companyName}</strong>
@@ -430,7 +455,9 @@ document.addEventListener('DOMContentLoaded', () => {
               <button class="btn btn-sm text-danger" style="padding: 2px 6px;" onclick="deleteSignal(${s.id})">Delete</button>
             </div>
           </div>
-        `).join('');
+        `
+          )
+          .join('');
       }
     } catch (err) {
       console.error(err);
@@ -475,13 +502,16 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    tbody.innerHTML = filtered.map((c) => {
-      let statusBadge = '<span class="text-warning">Unknown</span>';
-      if (c.emailStatus === 'verified') statusBadge = '<span class="text-success font-semibold">✓ Verified</span>';
-      else if (c.emailStatus === 'guessed') statusBadge = '<span class="text-info font-semibold">⚡ Guessed</span>';
+    tbody.innerHTML = filtered
+      .map((c) => {
+        let statusBadge = '<span class="text-warning">Unknown</span>';
+        if (c.emailStatus === 'verified')
+          statusBadge = '<span class="text-success font-semibold">✓ Verified</span>';
+        else if (c.emailStatus === 'guessed')
+          statusBadge = '<span class="text-info font-semibold">⚡ Guessed</span>';
 
-      return `
-        <tr>
+        return `
+        <tr class="contact-row" data-contact-id="${c.id}">
           <td><strong>${c.fullName}</strong></td>
           <td>${c.title}<br><span style="font-size: 11px; color: var(--text-muted);">${c.contactType.replace('_', ' ').toUpperCase()}</span></td>
           <td><strong>${c.companyName}</strong></td>
@@ -496,7 +526,8 @@ document.addEventListener('DOMContentLoaded', () => {
           </td>
         </tr>
       `;
-    }).join('');
+      })
+      .join('');
   }
 
   // ─── 5. OUTREACH QUEUE CONTROLLER ───────────────────────────
@@ -545,16 +576,24 @@ document.addEventListener('DOMContentLoaded', () => {
             <p>${o.contactTitle || ''} • Timezone: <strong>${o.timezone}</strong></p>
           </div>
           <div class="outreach-badges-row">
-            ${windowEval.allowed ? `
+            ${
+              windowEval.allowed
+                ? `
               <span class="window-badge-in">🟢 In Send Window</span>
-            ` : `
+            `
+                : `
               <span class="window-badge-out" title="${windowEval.reason || ''}">🔴 Outside Window</span>
-            `}
-            ${lint.valid ? `
+            `
+            }
+            ${
+              lint.valid
+                ? `
               <span class="lint-badge-pass">✅ LINT PASS (${bodyWords}w)</span>
-            ` : `
+            `
+                : `
               <span class="lint-badge-warn" title="${lint.warnings.join(' | ')}">⚠️ LINT WARN (${bodyWords}w)</span>
-            `}
+            `
+            }
             <span class="badge" style="background: rgba(255,255,255,0.08); padding: 4px 8px; border-radius: 4px; font-weight: 700;">
               ${o.type === 'follow_up_1' ? 'FOLLOW-UP' : `VAR ${o.variant}`} • ${o.status.toUpperCase()}
             </span>
@@ -566,11 +605,15 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="outreach-body-text">${o.body}</div>
         </div>
 
-        ${!lint.valid ? `
+        ${
+          !lint.valid
+            ? `
           <div style="font-size: 12px; color: #fbbf24; background: rgba(245, 158, 11, 0.1); padding: 8px 12px; border-radius: var(--radius-sm); border: 1px solid rgba(245, 158, 11, 0.2);">
             ⚠️ <strong>Lint Warnings:</strong> ${lint.warnings.join(' • ')}
           </div>
-        ` : ''}
+        `
+            : ''
+        }
 
         <div class="outreach-footer">
           <div style="font-size: 12px; color: var(--text-muted);">
@@ -579,17 +622,29 @@ document.addEventListener('DOMContentLoaded', () => {
             ${o.outcome && o.outcome !== 'none' ? ` • Outcome: <strong style="color: #34d399;">${o.outcome.toUpperCase()}</strong>` : ''}
           </div>
           <div style="display: flex; gap: 8px; align-items: center;">
-            ${o.status === 'draft' ? `
+            ${
+              o.status === 'draft'
+                ? `
               <button class="btn btn-sm btn-primary" onclick="approveOutreach(${o.id})">Approve Draft</button>
               <button class="btn btn-sm btn-secondary" onclick="openEditDraftModal(${o.id}, '${o.subject.replace(/'/g, "\\'")}', '${o.body.replace(/\n/g, '\\n').replace(/'/g, "\\'")}')">Edit</button>
-            ` : ''}
-            ${o.status === 'approved' ? `
+            `
+                : ''
+            }
+            ${
+              o.status === 'approved'
+                ? `
               <button class="btn btn-sm btn-secondary" onclick="sendOutreachDirect(${o.id}, true)">Send (Dry-Run .eml)</button>
               <button class="btn btn-sm btn-primary" onclick="sendOutreachDirect(${o.id}, false)">Send (Real SMTP)</button>
-            ` : ''}
-            ${o.status === 'sent' ? `
+            `
+                : ''
+            }
+            ${
+              o.status === 'sent'
+                ? `
               <button class="btn btn-sm btn-secondary" onclick="recordReplyDirect(${o.id})">Record Reply</button>
-            ` : ''}
+            `
+                : ''
+            }
             <button class="btn btn-sm text-danger" onclick="deleteOutreachDirect(${o.id})">✕</button>
           </div>
         </div>
@@ -611,7 +666,10 @@ document.addEventListener('DOMContentLoaded', () => {
       { label: '2. Qualified (≥60)', val: f.qualified || 0 },
       { label: '3. Near Misses (40–59)', val: f.nearMisses || 0 },
       { label: '4. Contacts Found', val: f.contactsFound || 0 },
-      { label: '5. Outreach Drafted', val: (f.outreachDrafts || 0) + (f.outreachApproved || 0) + (f.outreachSent || 0) },
+      {
+        label: '5. Outreach Drafted',
+        val: (f.outreachDrafts || 0) + (f.outreachApproved || 0) + (f.outreachSent || 0),
+      },
       { label: '6. Approved By You', val: (f.outreachApproved || 0) + (f.outreachSent || 0) },
       { label: '7. Sent', val: f.outreachSent || 0 },
       { label: '8. Replied', val: f.outreachReplied || 0 },
@@ -619,9 +677,10 @@ document.addEventListener('DOMContentLoaded', () => {
     ];
 
     const funnelEl = document.getElementById('funnel-display');
-    funnelEl.innerHTML = funnelSteps.map((step) => {
-      const pct = Math.max(Math.min((step.val / maxVal) * 100, 100), step.val > 0 ? 4 : 0);
-      return `
+    funnelEl.innerHTML = funnelSteps
+      .map((step) => {
+        const pct = Math.max(Math.min((step.val / maxVal) * 100, 100), step.val > 0 ? 4 : 0);
+        return `
         <div class="funnel-step">
           <div class="funnel-label">${step.label}</div>
           <div class="funnel-bar-track">
@@ -630,15 +689,17 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="funnel-val">${step.val}</div>
         </div>
       `;
-    }).join('');
+      })
+      .join('');
 
     // Score Distribution Chart
     const distEl = document.getElementById('score-distribution-chart');
     const dist = s.scoreDistribution || [];
     const maxCount = Math.max(...dist.map((d) => d.count), 1);
-    distEl.innerHTML = dist.map((d) => {
-      const pct = (d.count / maxCount) * 100;
-      return `
+    distEl.innerHTML = dist
+      .map((d) => {
+        const pct = (d.count / maxCount) * 100;
+        return `
         <div class="funnel-step mb-2" style="grid-template-columns: 140px 1fr 50px;">
           <div class="funnel-label" style="font-size: 12px;">${d.range}</div>
           <div class="funnel-bar-track" style="height: 18px;">
@@ -647,24 +708,29 @@ document.addEventListener('DOMContentLoaded', () => {
           <div class="funnel-val">${d.count}</div>
         </div>
       `;
-    }).join('');
+      })
+      .join('');
 
     // Safety Rails Meters
     const dailySends = s.safety?.dailySentToday || 0;
     const dailyCap = s.safety?.dailyCap || 20;
     document.getElementById('meter-daily-sends').style.width = `${(dailySends / dailyCap) * 100}%`;
-    document.getElementById('text-daily-sends').textContent = `${dailySends} / ${dailyCap} sent today (Remaining: ${dailyCap - dailySends})`;
+    document.getElementById('text-daily-sends').textContent =
+      `${dailySends} / ${dailyCap} sent today (Remaining: ${dailyCap - dailySends})`;
 
     const bounceRate = s.safety?.bounceRatePercent || 0;
     const meterBounce = document.getElementById('meter-bounce-rate');
     meterBounce.style.width = `${Math.min(bounceRate * 10, 100)}%`;
     if (bounceRate > 10) meterBounce.className = 'safety-progress-fill bg-danger';
-    document.getElementById('text-bounce-rate').textContent = `${bounceRate}% bounce rate (Circuit breaker limit is 10%)`;
+    document.getElementById('text-bounce-rate').textContent =
+      `${bounceRate}% bounce rate (Circuit breaker limit is 10%)`;
 
     const hunterCalls = s.apiUsage?.hunterCalls || 0;
     const hunterQuota = s.apiUsage?.monthlyQuota || 25;
-    document.getElementById('meter-hunter-calls').style.width = `${(hunterCalls / hunterQuota) * 100}%`;
-    document.getElementById('text-hunter-calls').textContent = `${hunterCalls} / ${hunterQuota} calls used this month`;
+    document.getElementById('meter-hunter-calls').style.width =
+      `${(hunterCalls / hunterQuota) * 100}%`;
+    document.getElementById('text-hunter-calls').textContent =
+      `${hunterCalls} / ${hunterQuota} calls used this month`;
   }
 
   // ─── 7. SETTINGS & HEALTH VIEW CONTROLLER ───────────────────
@@ -717,13 +783,20 @@ document.addEventListener('DOMContentLoaded', () => {
       const res = await fetch('/api/doctor');
       const checks = await res.json();
 
-      listEl.innerHTML = checks.map((c) => {
-        let badgeColor = '#34d399';
-        let icon = '✓';
-        if (c.status === 'warn') { badgeColor = '#fbbf24'; icon = '⚠️'; }
-        if (c.status === 'error') { badgeColor = '#f87171'; icon = '✕'; }
+      listEl.innerHTML = checks
+        .map((c) => {
+          let badgeColor = '#34d399';
+          let icon = '✓';
+          if (c.status === 'warn') {
+            badgeColor = '#fbbf24';
+            icon = '⚠️';
+          }
+          if (c.status === 'error') {
+            badgeColor = '#f87171';
+            icon = '✕';
+          }
 
-        return `
+          return `
           <div style="background: rgba(255,255,255,0.03); border: 1px solid var(--border-color); border-radius: var(--radius-sm); padding: 12px 14px;">
             <div style="display: flex; justify-content: space-between; margin-bottom: 4px;">
               <strong>${c.name}</strong>
@@ -732,7 +805,8 @@ document.addEventListener('DOMContentLoaded', () => {
             <div style="font-size: 13px; color: var(--text-muted);">${c.message}</div>
           </div>
         `;
-      }).join('');
+        })
+        .join('');
     } catch (err) {
       listEl.innerHTML = `<div class="empty-state text-danger">Diagnostic failed: ${err.message}</div>`;
     }
@@ -929,7 +1003,16 @@ document.addEventListener('DOMContentLoaded', () => {
       const res = await fetch('/api/contacts', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ companyId, fullName, title, contactType, email, timezone, linkedinUrl, source: 'manual' }),
+        body: JSON.stringify({
+          companyId,
+          fullName,
+          title,
+          contactType,
+          email,
+          timezone,
+          linkedinUrl,
+          source: 'manual',
+        }),
       });
       if (!res.ok) throw new Error('Failed to add contact');
       document.getElementById('add-contact-modal').classList.remove('active');
@@ -982,7 +1065,10 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       const data = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to generate outreach');
-      showToast(`Created Variant A (#${data.draftAId}) & Variant B (#${data.draftBId})!`, 'success');
+      showToast(
+        `Created Variant A (#${data.draftAId}) & Variant B (#${data.draftBId})!`,
+        'success'
+      );
       switchTab('sect-outreach');
     } catch (err) {
       showToast(err.message, 'error');
@@ -1012,12 +1098,16 @@ document.addEventListener('DOMContentLoaded', () => {
       });
       const data = await res.json();
       container.classList.remove('hidden');
-      list.innerHTML = data.candidates.map((cand) => `
+      list.innerHTML = data.candidates
+        .map(
+          (cand) => `
         <div style="background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 4px; display: flex; justify-content: space-between; align-items: center;">
           <code>${cand.email}</code>
           <span class="badge" style="background: rgba(99,102,241,0.2); color: #818cf8; padding: 2px 6px;">${cand.pattern}</span>
         </div>
-      `).join('');
+      `
+        )
+        .join('');
     } catch (err) {
       showToast(err.message, 'error');
     }
@@ -1063,7 +1153,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   window.sendOutreachDirect = async (id, dryRun) => {
     try {
-      showToast(dryRun ? `Generating local .eml for #${id}...` : `Sending #${id} via SMTP...`, 'info');
+      showToast(
+        dryRun ? `Generating local .eml for #${id}...` : `Sending #${id} via SMTP...`,
+        'info'
+      );
       const res = await fetch(`/api/outreach/${id}/send`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -1086,7 +1179,10 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   window.recordReplyDirect = async (id) => {
-    const outcome = prompt('Enter reply outcome (positive, interview, referral, negative):', 'positive');
+    const outcome = prompt(
+      'Enter reply outcome (positive, interview, referral, negative):',
+      'positive'
+    );
     if (!outcome) return;
 
     try {
@@ -1119,8 +1215,12 @@ document.addEventListener('DOMContentLoaded', () => {
     editModal.classList.add('active');
   };
 
-  document.getElementById('btn-close-edit-modal')?.addEventListener('click', () => editModal.classList.remove('active'));
-  document.getElementById('btn-cancel-edit')?.addEventListener('click', () => editModal.classList.remove('active'));
+  document
+    .getElementById('btn-close-edit-modal')
+    ?.addEventListener('click', () => editModal.classList.remove('active'));
+  document
+    .getElementById('btn-cancel-edit')
+    ?.addEventListener('click', () => editModal.classList.remove('active'));
 
   [editSubjectInput, editBodyInput].forEach((el) => {
     el?.addEventListener('input', updateEditWordCounts);

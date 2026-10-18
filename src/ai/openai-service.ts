@@ -35,11 +35,7 @@ export class AIService {
   private temperature: number;
   private isMock: boolean;
 
-  constructor(options: {
-    apiKey: string;
-    model?: string;
-    temperature?: number;
-  }) {
+  constructor(options: { apiKey: string; model?: string; temperature?: number }) {
     this.isMock = options.apiKey === 'mock' || options.apiKey.startsWith('mock-');
     this.client = new OpenAI({ apiKey: this.isMock ? 'mock-key' : options.apiKey });
     this.model = options.model ?? 'gpt-4o';
@@ -55,16 +51,20 @@ export class AIService {
     if (this.isMock) {
       return '';
     }
-    return withRetry(async () => {
-      const response = await this.client.chat.completions.create({
-        model: this.model,
-        temperature: this.temperature,
-        max_tokens: maxTokens,
-        messages: [{ role: 'user', content: prompt }],
-      });
+    return withRetry(
+      async () => {
+        const response = await this.client.chat.completions.create({
+          model: this.model,
+          temperature: this.temperature,
+          max_tokens: maxTokens,
+          messages: [{ role: 'user', content: prompt }],
+        });
 
-      return response.choices[0]?.message?.content?.trim() ?? '';
-    }, 3, 2000);
+        return response.choices[0]?.message?.content?.trim() ?? '';
+      },
+      3,
+      2000
+    );
   }
 
   // ─── Resume Generation ────────────────────────────────────
@@ -96,7 +96,9 @@ export class AIService {
 
   <section style="margin-bottom:20px">
     <h2 style="color:#1e3a8a;border-bottom:1px solid #e2e8f0;padding-bottom:4px;font-size:18px">Work Experience</h2>
-    ${profile.experience.map((exp) => `
+    ${profile.experience
+      .map(
+        (exp) => `
       <div style="margin-bottom:14px">
         <div style="display:flex;justify-content:space-between;font-weight:bold;color:#0f172a">
           <span>${exp.role}</span>
@@ -107,7 +109,9 @@ export class AIService {
           ${exp.highlights.map((h) => `<li>${h}</li>`).join('')}
         </ul>
       </div>
-    `).join('')}
+    `
+      )
+      .join('')}
   </section>
 
   <section>
@@ -208,12 +212,13 @@ export class AIService {
         keyResponsibilities: [
           'Design and implement high-performance APIs.',
           'Collaborate with product managers and engineers.',
-          'Optimize frontend user experience.'
+          'Optimize frontend user experience.',
         ],
         benefits: ['Competitive salary', 'Flexible working hours', 'Health insurance'],
         salaryRange: job.salary || '18-24 LPA',
         companyStage: 'growth',
-        interviewInsights: 'Online coding round, followed by system design and behavioral discussions.'
+        interviewInsights:
+          'Online coding round, followed by system design and behavioral discussions.',
       };
     }
 
@@ -239,7 +244,13 @@ export class AIService {
     logger.info('Generating AI daily summary');
 
     if (this.isMock) {
-      const topMatches = jobs.slice(0, 2).map((j) => `${j.title} at ${j.company}`).join(' and ');
+      if (jobs.length === 0) {
+        return `JobHermes conducted a daily scan analyzing ${totalScraped} job listings across ${companiesCovered.length} sites. After multi-dimensional filtering, 0 matching roles found today. No jobs met the scoring threshold of 60. We recommend monitoring upcoming listings and checking near-misses.`;
+      }
+      const topMatches = jobs
+        .slice(0, 2)
+        .map((j) => `${j.title} at ${j.company}`)
+        .join(' and ');
       return `JobHermes conducted a daily scan analyzing ${totalScraped} job listings across ${companiesCovered.length} sites. After multi-dimensional filtering, ${jobs.length} jobs matched your candidate profile. The most notable opportunities are ${topMatches || 'roles matching your skills'}. We recommend reviewing these matches and generating tailored resumes to apply.`;
     }
 

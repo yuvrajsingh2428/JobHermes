@@ -2,7 +2,14 @@
 // Outreach Draft Generator – Anti-Fluff, Fact-Grounded A/B & LinkedIn
 // ============================================================
 
-import { CandidateProfile, ContactRecord, JobPosting, CompanyRecord, SignalRecord, hasFillMarkers } from '../types';
+import {
+  CandidateProfile,
+  ContactRecord,
+  JobPosting,
+  CompanyRecord,
+  SignalRecord,
+  hasFillMarkers,
+} from '../types';
 import { logger } from '../utils/logger';
 
 export interface DraftLintResult {
@@ -93,15 +100,21 @@ export function lintOutreachDraft(
   }
 
   // Grounding check for unbacked company claims
-  const companyClaimPattern = /\b(expanding|scaling|growth|funding|series [a-z]|raised|doubling headcount)\b/i;
+  const companyClaimPattern =
+    /\b(expanding|scaling|growth|funding|series [a-z]|raised|doubling headcount)\b/i;
   const claimMatch = body.match(companyClaimPattern);
-  const hasUnsupportedClaims = Boolean(claimMatch && context && !context.hasSignal && !context.hasBrief);
+  const hasUnsupportedClaims = Boolean(
+    claimMatch && context && !context.hasSignal && !context.hasBrief
+  );
   if (hasUnsupportedClaims && claimMatch) {
-    warnings.push(`Draft contains unsupported company claim ("${claimMatch[0]}") without a verified signal URL or research brief`);
+    warnings.push(
+      `Draft contains unsupported company claim ("${claimMatch[0]}") without a verified signal URL or research brief`
+    );
   }
 
   // Proof point check (numbers, percentages, metrics)
-  const proofPattern = /(\b\d+%\b|\b\d+\s*x\b|\breduc(?:ed|ing)\b|\barchitected\b|\bincreased\b|\bcut\b|\bfrom \d+ to \d+\b|\b\d+ years\b)/i;
+  const proofPattern =
+    /(\b\d+%\b|\b\d+\s*x\b|\breduc(?:ed|ing)\b|\barchitected\b|\bincreased\b|\bcut\b|\bfrom \d+ to \d+\b|\b\d+ years\b)/i;
   const hasProofPoint = proofPattern.test(body);
   if (!hasProofPoint) {
     warnings.push('Missing concrete proof point or quantitative achievement');
@@ -149,12 +162,25 @@ export class DraftGenerator {
     signals: SignalRecord[] = [],
     options?: { allowFillForDemo?: boolean }
   ): GeneratedOutreachPack {
-    // 1. Fail-safe guard against unresolved [FILL] markers
+    // 1. Fail-safe guard against unresolved [FILL] markers and demo values
     if (!options?.allowFillForDemo) {
       const fillCheck = hasFillMarkers(profile);
       if (fillCheck.hasFill) {
         throw new Error(
           `Refusing to generate outreach drafts: candidate profile contains unresolved [FILL] markers (${fillCheck.markerPaths.slice(0, 3).join(', ')}). Edit config/candidate-profile.json first.`
+        );
+      }
+
+      // Real-mode guard: achievements must not be placeholders or demo values
+      const demoPatterns = [/60%/i, /45%/i, /\[FILL/i];
+      const hasInvalidAchievements =
+        !profile.achievements ||
+        profile.achievements.length === 0 ||
+        profile.achievements.every((a) => demoPatterns.some((p) => p.test(a)));
+
+      if (hasInvalidAchievements) {
+        throw new Error(
+          'Refusing to generate outreach in real mode: candidate achievements contain placeholders or demo values. Update your achievements with real experience in config/candidate-profile.json.'
         );
       }
     }
@@ -169,7 +195,11 @@ export class DraftGenerator {
     // Core candidate facts from profile
     let candidateName = profile.name;
     if (!options?.allowFillForDemo) {
-      if (!candidateName || candidateName.includes('[FILL') || candidateName.toLowerCase().trim() === 'candidate') {
+      if (
+        !candidateName ||
+        candidateName.includes('[FILL') ||
+        candidateName.toLowerCase().trim() === 'candidate'
+      ) {
         throw new Error(
           `Refusing to generate outreach in real mode: candidate name "${candidateName || ''}" is invalid or a placeholder. Set your real name in config/candidate-profile.json.`
         );
@@ -180,16 +210,35 @@ export class DraftGenerator {
       }
     }
 
-    const topSkills = (job.scoreBreakdown?.matchedSkills.slice(0, 3) || ['Playwright', 'Selenium', 'REST Assured']).join(', ');
+    const topSkills = (
+      job.scoreBreakdown?.matchedSkills.slice(0, 3) || ['Playwright', 'Selenium', 'REST Assured']
+    ).join(', ');
     citedFacts.push(`Matched skills: ${topSkills}`);
 
-    const achievementSnippet = profile.achievements.find((a) => !a.includes('[FILL')) ||
-      'built automated regression suites reducing manual test cycles by 60%';
-    citedFacts.push(`Key achievement: ${achievementSnippet}`);
+    const years = profile.experienceYears || 2;
+    citedFacts.push(`Experience: ${years} years`);
 
-    const secondAchievement = profile.achievements.filter((a) => !a.includes('[FILL'))[1] ||
-      'built hybrid automation framework reducing execution time by 45%';
-    citedFacts.push(`Framework highlight: ${secondAchievement}`);
+    let achievementSnippet = '';
+    let secondAchievement = '';
+
+    if (options?.allowFillForDemo) {
+      // Demo sandbox fallback achievements
+      achievementSnippet =
+        profile.achievements.find((a) => !a.includes('[FILL')) ||
+        'built automated regression suites reducing manual test cycles by 60%';
+      secondAchievement =
+        profile.achievements.filter((a) => !a.includes('[FILL'))[1] ||
+        'built hybrid automation framework reducing execution time by 45%';
+    } else {
+      const realAchievements = (profile.achievements || []).filter(
+        (a) => !a.includes('[FILL') && !/60%|45%/i.test(a)
+      );
+      achievementSnippet = realAchievements[0] || profile.achievements[0] || '';
+      secondAchievement = realAchievements[1] || profile.achievements[1] || '';
+    }
+
+    citedFacts.push(`Key achievement: ${achievementSnippet}`);
+    if (secondAchievement) citedFacts.push(`Secondary achievement: ${secondAchievement}`);
 
     let signalSnippet = '';
     if (validSignals.length > 0) {
@@ -197,7 +246,10 @@ export class DraftGenerator {
       citedFacts.push(`Company signal: ${validSignals[0].detail} (${validSignals[0].url})`);
     } else if (company.researchBrief) {
       try {
-        const brief = typeof company.researchBrief === 'string' ? JSON.parse(company.researchBrief) : company.researchBrief;
+        const brief =
+          typeof company.researchBrief === 'string'
+            ? JSON.parse(company.researchBrief)
+            : company.researchBrief;
         if (brief?.recentSpecificThing) {
           signalSnippet = `I've been following ${company.name}'s work on ${brief.recentSpecificThing}. `;
           citedFacts.push(`Company brief: ${brief.recentSpecificThing}`);
@@ -213,15 +265,15 @@ export class DraftGenerator {
     // Subject rule: under 8 words (< 8 words)
     const subjectA = `SDET test automation @ ${company.name}`;
     const openingA = signalSnippet
-      ? `${signalSnippet}I have 2 years of SDET experience designing test automation frameworks with ${topSkills}.`
-      : `I came across the ${job.title} role at ${company.name} and wanted to reach out directly. I have 2 years of SDET experience designing test automation frameworks with ${topSkills}.`;
+      ? `${signalSnippet}I have ${years} years of SDET experience designing test automation frameworks with ${topSkills}.`
+      : `I came across the ${job.title} role at ${company.name} and wanted to reach out directly. I have ${years} years of SDET experience designing test automation frameworks with ${topSkills}.`;
 
     const bodyA = [
       `Hi ${contactFirstName},`,
       ``,
       openingA,
       ``,
-      `In my recent role, I ${achievementSnippet}. Additionally, I ${secondAchievement.toLowerCase()} to prevent defects before production deployment.`,
+      `In my recent role, I ${achievementSnippet}. Additionally, I ${secondAchievement.toLowerCase()}.`,
       ``,
       `Would you be open to a brief 10-minute conversation next week to see if my testing background aligns with your team's needs?`,
       ``,
@@ -239,7 +291,7 @@ export class DraftGenerator {
       ``,
       `I saw the ${job.title} opening at ${company.name} and wanted to reach out directly.`,
       ``,
-      `My core test stack matches your requirements: ${topSkills}. Over the past 2 years, I ${achievementSnippet}. I also ${secondAchievement.toLowerCase()} to accelerate testing feedback.`,
+      `My core test stack matches your requirements: ${topSkills}. Over the past ${years} years, I ${achievementSnippet}. I also ${secondAchievement.toLowerCase()}.`,
       ``,
       `Would you be open to a brief 10-minute conversation next week to discuss how I could contribute to ${company.name}'s QA engineering goals?`,
       ``,
@@ -261,7 +313,9 @@ export class DraftGenerator {
     const lintA = lintOutreachDraft(subjectA, bodyA, contextLint);
     const lintB = lintOutreachDraft(subjectB, bodyB, contextLint);
 
-    logger.info(`Generated grounded outreach pack for ${contact.fullName} @ ${company.name} (Var A: ${lintA.wordCount}w, Var B: ${lintB.wordCount}w, DM: ${linkedInWordCount}w)`);
+    logger.info(
+      `Generated grounded outreach pack for ${contact.fullName} @ ${company.name} (Var A: ${lintA.wordCount}w, Var B: ${lintB.wordCount}w, DM: ${linkedInWordCount}w)`
+    );
 
     return {
       variantA: { subject: subjectA, body: bodyA, lint: lintA },

@@ -86,7 +86,9 @@ export async function addCompanyFromUrl(
   const normalizedUrl = careersUrl.trim();
   let domain = 'custom.com';
   try {
-    const parsed = new URL(normalizedUrl.startsWith('http') ? normalizedUrl : `https://${normalizedUrl}`);
+    const parsed = new URL(
+      normalizedUrl.startsWith('http') ? normalizedUrl : `https://${normalizedUrl}`
+    );
     domain = parsed.hostname.replace(/^www\./, '');
   } catch {
     // Ignore
@@ -123,7 +125,9 @@ export async function addCompanyFromUrl(
     const verification = await verifyTargetSlug(targetEntry);
     if (verification.status === 'working') {
       targetEntry.verified = true;
-      logger.success(`✅ Live ATS verification successful! Found ${verification.jobCount ?? 0} active postings.`);
+      logger.success(
+        `✅ Live ATS verification successful! Found ${verification.jobCount ?? 0} active postings.`
+      );
     } else {
       logger.warn(`⚠️ Slug verification returned: ${verification.message}`);
     }
@@ -133,10 +137,18 @@ export async function addCompanyFromUrl(
     console.log('       PLAYWRIGHT FALLBACK SELECTORS CONFIGURATION          ');
     console.log('============================================================');
     console.log(`Company: ${companyName} (${normalizedUrl})`);
-    console.log('To scrape this custom JS-rendered page, configure selectors in config/company-targets.json:');
-    console.log('  • listSelector:  CSS selector for each job card container (e.g. ".job-card", "li.job")');
-    console.log('  • titleSelector: CSS selector for the job title inside each card (e.g. "h3", ".job-title")');
-    console.log('  • linkSelector:  CSS selector for the details/apply link inside each card (e.g. "a")');
+    console.log(
+      'To scrape this custom JS-rendered page, configure selectors in config/company-targets.json:'
+    );
+    console.log(
+      '  • listSelector:  CSS selector for each job card container (e.g. ".job-card", "li.job")'
+    );
+    console.log(
+      '  • titleSelector: CSS selector for the job title inside each card (e.g. "h3", ".job-title")'
+    );
+    console.log(
+      '  • linkSelector:  CSS selector for the details/apply link inside each card (e.g. "a")'
+    );
     console.log('============================================================\n');
   }
 
@@ -148,7 +160,9 @@ export async function addCompanyFromUrl(
   }
 
   const existingIdx = targets.findIndex(
-    (t) => (t.slug && t.slug === targetEntry.slug && t.ats === targetEntry.ats) || t.name.toLowerCase() === targetEntry.name.toLowerCase()
+    (t) =>
+      (t.slug && t.slug === targetEntry.slug && t.ats === targetEntry.ats) ||
+      t.name.toLowerCase() === targetEntry.name.toLowerCase()
   );
 
   if (existingIdx >= 0) {

@@ -19,10 +19,7 @@ describe('FILL Marker Guard Unit Tests', () => {
   it('detects [FILL] marker in nested arrays and objects', () => {
     const profile = {
       name: 'John Doe',
-      achievements: [
-        'Built framework',
-        '[FILL: e.g. Reduced execution time by 50%]',
-      ],
+      achievements: ['Built framework', '[FILL: e.g. Reduced execution time by 50%]'],
     };
     const res = hasFillMarkers(profile);
     expect(res.hasFill).toBe(true);

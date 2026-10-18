@@ -44,7 +44,9 @@ export function runMigrations(db: Database.Database, migrationsDir?: string): nu
     );
   `);
 
-  const appliedRows = db.prepare('SELECT version FROM schema_migrations').all() as { version: number }[];
+  const appliedRows = db.prepare('SELECT version FROM schema_migrations').all() as {
+    version: number;
+  }[];
   const appliedSet = new Set(appliedRows.map((r) => r.version));
 
   const migrations = loadMigrationFiles(migrationsDir);
@@ -55,7 +57,10 @@ export function runMigrations(db: Database.Database, migrationsDir?: string): nu
       logger.info(`Applying database migration ${m.version}: ${m.name}...`);
       const applyTx = db.transaction(() => {
         db.exec(m.sql);
-        db.prepare('INSERT INTO schema_migrations (version, name) VALUES (?, ?)').run(m.version, m.name);
+        db.prepare('INSERT INTO schema_migrations (version, name) VALUES (?, ?)').run(
+          m.version,
+          m.name
+        );
       });
       applyTx();
       newlyApplied++;

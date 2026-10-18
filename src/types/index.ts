@@ -69,14 +69,14 @@ export type ApplicationStatus =
   | 'closed';
 
 export interface ScoreBreakdown {
-  titleMatch: number;      // 0-25
-  skillMatch: number;      // 0-30
-  experienceFit: number;   // 0-15
-  locationFit: number;     // 0-10
-  freshness: number;       // 0-10
-  hiringSignal: number;    // 0-10
-  salaryMatch: number;     // 0-5
-  total: number;           // 0-100
+  titleMatch: number; // 0-25
+  skillMatch: number; // 0-30
+  experienceFit: number; // 0-15
+  locationFit: number; // 0-10
+  freshness: number; // 0-10
+  hiringSignal: number; // 0-10
+  salaryMatch: number; // 0-5
+  total: number; // 0-100
   reasons: string[];
   matchedSkills: string[];
   missingSkills: string[];
@@ -133,17 +133,27 @@ export const CandidateProfileSchema = z.object({
     cloud: z.array(z.string()).optional().default([]),
     tools: z.array(z.string()).optional().default([]),
   }),
-  experience: z.array(z.object({
-    company: z.string(),
-    role: z.string(),
-    duration: z.string(),
-    highlights: z.array(z.string()),
-  })).optional().default([]),
-  education: z.array(z.object({
-    institution: z.string(),
-    degree: z.string(),
-    year: z.string(),
-  })).optional().default([]),
+  experience: z
+    .array(
+      z.object({
+        company: z.string(),
+        role: z.string(),
+        duration: z.string(),
+        highlights: z.array(z.string()),
+      })
+    )
+    .optional()
+    .default([]),
+  education: z
+    .array(
+      z.object({
+        institution: z.string(),
+        degree: z.string(),
+        year: z.string(),
+      })
+    )
+    .optional()
+    .default([]),
   certifications: z.array(z.string()).optional().default([]),
   preferredLocations: z.array(z.string()).default([]),
   openToRemote: z.boolean().default(true),
@@ -187,12 +197,7 @@ export type ContactType =
   | 'generic_careers'
   | 'referral';
 
-export type EmailStatus =
-  | 'unknown'
-  | 'guessed'
-  | 'verified'
-  | 'bounced'
-  | 'invalid';
+export type EmailStatus = 'unknown' | 'guessed' | 'verified' | 'bounced' | 'invalid';
 
 export interface CompanyRecord {
   id?: number;
@@ -323,4 +328,3 @@ export interface LogEntry {
   timestamp: string;
   context?: Record<string, unknown>;
 }
-

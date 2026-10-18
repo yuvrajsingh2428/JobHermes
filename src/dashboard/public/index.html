@@ -1,747 +1,885 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>JobHermes – SDET Job-Search Copilot</title>
-  <meta name="description" content="Autonomous AI Copilot for SDET roles: ATS job discovery, 100-pt fit scoring, human contact research, anti-fluff grounded outreach, and safe email delivery.">
-  <!-- Google Fonts: Inter -->
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="index.css">
-</head>
-<body>
-  <!-- Toast Notification Container -->
-  <div id="toast-container" class="toast-container" aria-live="polite"></div>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>JobHermes – SDET Job-Search Copilot</title>
+    <meta
+      name="description"
+      content="Autonomous AI Copilot for SDET roles: ATS job discovery, 100-pt fit scoring, human contact research, anti-fluff grounded outreach, and safe email delivery."
+    />
+    <!-- Google Fonts: Inter -->
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="index.css" />
+  </head>
+  <body>
+    <!-- Toast Notification Container -->
+    <div id="toast-container" class="toast-container" aria-live="polite"></div>
 
-  <!-- Header -->
-  <header class="app-header">
-    <div class="header-container">
-      <div class="logo-group">
-        <div class="logo-icon-wrapper">
-          <span class="logo-icon">⚡</span>
+    <!-- Header -->
+    <header class="app-header">
+      <div class="header-container">
+        <div class="logo-group">
+          <div class="logo-icon-wrapper">
+            <span class="logo-icon">⚡</span>
+          </div>
+          <div>
+            <h1 id="header-title" class="logo-text">JobHermes</h1>
+            <p class="logo-subtitle">SDET Job-Search Copilot (1–3 YOE Automation Target)</p>
+          </div>
         </div>
-        <div>
-          <h1 id="header-title" class="logo-text">JobHermes</h1>
-          <p class="logo-subtitle">SDET Job-Search Copilot (1–3 YOE Automation Target)</p>
+
+        <!-- Scan Status & Control -->
+        <div class="header-actions">
+          <div id="scan-status-badge" class="scan-status-badge idle">
+            <span class="pulse-dot"></span>
+            <span id="scan-status-text">Ready</span>
+          </div>
+          <button id="btn-run-scan" class="btn btn-primary" title="Trigger ATS Job Scan">
+            <span class="btn-icon">🔍</span> Start Scan
+          </button>
         </div>
       </div>
-      
-      <!-- Scan Status & Control -->
-      <div class="header-actions">
-        <div id="scan-status-badge" class="scan-status-badge idle">
-          <span class="pulse-dot"></span>
-          <span id="scan-status-text">Ready</span>
+    </header>
+
+    <!-- Main Container -->
+    <div class="app-container">
+      <!-- Top Metrics Overview -->
+      <section class="stats-grid" aria-label="Copilot key metrics">
+        <div class="stat-card" id="card-stat-jobs">
+          <div class="stat-icon-box text-indigo">🎯</div>
+          <div class="stat-details">
+            <div class="stat-value" id="val-qualified-jobs">0</div>
+            <div class="stat-label">Qualified SDET (≥60)</div>
+          </div>
         </div>
-        <button id="btn-run-scan" class="btn btn-primary" title="Trigger ATS Job Scan">
-          <span class="btn-icon">🔍</span> Start Scan
+        <div class="stat-card" id="card-stat-nearmisses">
+          <div class="stat-icon-box text-amber">⚠️</div>
+          <div class="stat-details">
+            <div class="stat-value" id="val-near-misses">0</div>
+            <div class="stat-label">Near Misses (40–59)</div>
+          </div>
+        </div>
+        <div class="stat-card" id="card-stat-drafts">
+          <div class="stat-icon-box text-cyan">✉️</div>
+          <div class="stat-details">
+            <div class="stat-value" id="val-pending-drafts">0</div>
+            <div class="stat-label">Pending Approvals</div>
+          </div>
+        </div>
+        <div class="stat-card" id="card-stat-contacts">
+          <div class="stat-icon-box text-emerald">👥</div>
+          <div class="stat-details">
+            <div class="stat-value" id="val-verified-contacts">0</div>
+            <div class="stat-label">Verified Contacts</div>
+          </div>
+        </div>
+        <div class="stat-card" id="card-stat-daily">
+          <div class="stat-icon-box text-violet">📤</div>
+          <div class="stat-details">
+            <div class="stat-value" id="val-daily-sent">0 / 20</div>
+            <div class="stat-label">Sent Today (Cap: 20)</div>
+          </div>
+        </div>
+      </section>
+
+      <!-- Navigation Tabs (7 Core Pages) -->
+      <nav class="nav-tabs" aria-label="Dashboard navigation">
+        <button id="tab-today" class="tab-btn active" data-tab="sect-today">
+          <span class="tab-icon">⚡</span> Today
         </button>
-      </div>
-    </div>
-  </header>
+        <button id="tab-jobs" class="tab-btn" data-tab="sect-jobs">
+          <span class="tab-icon">🎯</span> Jobs <span id="badge-jobs" class="tab-badge">0</span>
+        </button>
+        <button id="tab-companies" class="tab-btn" data-tab="sect-companies">
+          <span class="tab-icon">🏢</span> Companies & Signals
+        </button>
+        <button id="tab-contacts" class="tab-btn" data-tab="sect-contacts">
+          <span class="tab-icon">👥</span> Contacts
+        </button>
+        <button id="tab-outreach" class="tab-btn" data-tab="sect-outreach">
+          <span class="tab-icon">✉️</span> Outreach Queue
+          <span id="badge-outreach" class="tab-badge">0</span>
+        </button>
+        <button id="tab-analytics" class="tab-btn" data-tab="sect-analytics">
+          <span class="tab-icon">📊</span> Analytics
+        </button>
+        <button id="tab-settings" class="tab-btn" data-tab="sect-settings">
+          <span class="tab-icon">⚙️</span> Settings & Health
+        </button>
+      </nav>
 
-  <!-- Main Container -->
-  <div class="app-container">
-    <!-- Top Metrics Overview -->
-    <section class="stats-grid" aria-label="Copilot key metrics">
-      <div class="stat-card" id="card-stat-jobs">
-        <div class="stat-icon-box text-indigo">🎯</div>
-        <div class="stat-details">
-          <div class="stat-value" id="val-qualified-jobs">0</div>
-          <div class="stat-label">Qualified SDET (≥60)</div>
-        </div>
-      </div>
-      <div class="stat-card" id="card-stat-nearmisses">
-        <div class="stat-icon-box text-amber">⚠️</div>
-        <div class="stat-details">
-          <div class="stat-value" id="val-near-misses">0</div>
-          <div class="stat-label">Near Misses (40–59)</div>
-        </div>
-      </div>
-      <div class="stat-card" id="card-stat-drafts">
-        <div class="stat-icon-box text-cyan">✉️</div>
-        <div class="stat-details">
-          <div class="stat-value" id="val-pending-drafts">0</div>
-          <div class="stat-label">Pending Approvals</div>
-        </div>
-      </div>
-      <div class="stat-card" id="card-stat-contacts">
-        <div class="stat-icon-box text-emerald">👥</div>
-        <div class="stat-details">
-          <div class="stat-value" id="val-verified-contacts">0</div>
-          <div class="stat-label">Verified Contacts</div>
-        </div>
-      </div>
-      <div class="stat-card" id="card-stat-daily">
-        <div class="stat-icon-box text-violet">📤</div>
-        <div class="stat-details">
-          <div class="stat-value" id="val-daily-sent">0 / 20</div>
-          <div class="stat-label">Sent Today (Cap: 20)</div>
-        </div>
-      </div>
-    </section>
-
-    <!-- Navigation Tabs (7 Core Pages) -->
-    <nav class="nav-tabs" aria-label="Dashboard navigation">
-      <button id="tab-today" class="tab-btn active" data-tab="sect-today">
-        <span class="tab-icon">⚡</span> Today
-      </button>
-      <button id="tab-jobs" class="tab-btn" data-tab="sect-jobs">
-        <span class="tab-icon">🎯</span> Jobs <span id="badge-jobs" class="tab-badge">0</span>
-      </button>
-      <button id="tab-companies" class="tab-btn" data-tab="sect-companies">
-        <span class="tab-icon">🏢</span> Companies & Signals
-      </button>
-      <button id="tab-contacts" class="tab-btn" data-tab="sect-contacts">
-        <span class="tab-icon">👥</span> Contacts
-      </button>
-      <button id="tab-outreach" class="tab-btn" data-tab="sect-outreach">
-        <span class="tab-icon">✉️</span> Outreach Queue <span id="badge-outreach" class="tab-badge">0</span>
-      </button>
-      <button id="tab-analytics" class="tab-btn" data-tab="sect-analytics">
-        <span class="tab-icon">📊</span> Analytics
-      </button>
-      <button id="tab-settings" class="tab-btn" data-tab="sect-settings">
-        <span class="tab-icon">⚙️</span> Settings & Health
-      </button>
-    </nav>
-
-    <!-- Main Content Area -->
-    <main class="main-content">
-
-      <!-- =======================================================
+      <!-- Main Content Area -->
+      <main class="main-content">
+        <!-- =======================================================
            1. TODAY PAGE
            ======================================================= -->
-      <section id="sect-today" class="tab-content active">
-        <!-- Daily Digest Banner -->
-        <div class="hero-card">
-          <div class="hero-content">
-            <span class="hero-badge">DAILY DIGEST</span>
-            <h2 id="today-heading">Good day, Candidate</h2>
-            <p id="today-subheading" class="hero-desc">
-              Copilot monitored 9 active ATS boards. Next automated scan is scheduled at <strong>08:30 AM IST</strong>.
-            </p>
-            <div class="hero-actions">
-              <button id="btn-today-scan" class="btn btn-secondary">
-                <span>🔍</span> Run Job Scan Now
-              </button>
-              <button id="btn-today-followups" class="btn btn-secondary">
-                <span>🔄</span> Check Follow-ups
-              </button>
-              <button id="btn-today-doctor" class="btn btn-secondary">
-                <span>🩺</span> Run Health Check
-              </button>
-            </div>
-          </div>
-        </div>
-
-        <!-- Action Items Grid -->
-        <div class="today-grid">
-          <!-- Pending Approvals Card -->
-          <div class="dashboard-panel">
-            <div class="panel-header">
-              <h3>✉️ Outreach Awaiting Your Approval</h3>
-              <span id="today-drafts-count" class="badge badge-info">0 pending</span>
-            </div>
-            <div id="today-drafts-list" class="panel-body list-container">
-              <div class="empty-state">No drafts awaiting approval right now.</div>
+        <section id="sect-today" class="tab-content active">
+          <!-- Daily Digest Banner -->
+          <div class="hero-card">
+            <div class="hero-content">
+              <span class="hero-badge">DAILY DIGEST</span>
+              <h2 id="today-heading">Good day, Candidate</h2>
+              <p id="today-subheading" class="hero-desc">
+                Copilot monitored 9 active ATS boards. Next automated scan is scheduled at
+                <strong>08:30 AM IST</strong>.
+              </p>
+              <div class="hero-actions">
+                <button id="btn-today-scan" class="btn btn-secondary">
+                  <span>🔍</span> Run Job Scan Now
+                </button>
+                <button id="btn-today-followups" class="btn btn-secondary">
+                  <span>🔄</span> Check Follow-ups
+                </button>
+                <button id="btn-today-doctor" class="btn btn-secondary">
+                  <span>🩺</span> Run Health Check
+                </button>
+              </div>
             </div>
           </div>
 
-          <!-- Top Scored Opportunities Card -->
-          <div class="dashboard-panel">
-            <div class="panel-header">
-              <h3>🎯 Top SDET Matches To Target</h3>
-              <span id="today-top-jobs-count" class="badge badge-success">0 qualified</span>
+          <!-- Action Items Grid -->
+          <div class="today-grid">
+            <!-- Pending Approvals Card -->
+            <div class="dashboard-panel">
+              <div class="panel-header">
+                <h3>✉️ Outreach Awaiting Your Approval</h3>
+                <span id="today-drafts-count" class="badge badge-info">0 pending</span>
+              </div>
+              <div id="today-drafts-list" class="panel-body list-container">
+                <div class="empty-state">No drafts awaiting approval right now.</div>
+              </div>
             </div>
-            <div id="today-jobs-list" class="panel-body list-container">
-              <div class="empty-state">No fresh matches today yet. Start a scan to discover jobs.</div>
+
+            <!-- Top Scored Opportunities Card -->
+            <div class="dashboard-panel">
+              <div class="panel-header">
+                <h3>🎯 Top SDET Matches To Target</h3>
+                <span id="today-top-jobs-count" class="badge badge-success">0 qualified</span>
+              </div>
+              <div id="today-jobs-list" class="panel-body list-container">
+                <div class="empty-state">
+                  No fresh matches today yet. Start a scan to discover jobs.
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-      <!-- =======================================================
+        <!-- =======================================================
            2. JOBS PAGE
            ======================================================= -->
-      <section id="sect-jobs" class="tab-content">
-        <!-- Filter Bar -->
-        <div class="filter-bar">
-          <div class="filter-group">
-            <label for="filter-job-status">Status:</label>
-            <select id="filter-job-status" class="form-control">
-              <option value="">All Statuses</option>
-              <option value="new">New</option>
-              <option value="reviewed">Reviewed</option>
-              <option value="applied">Applied</option>
-              <option value="interviewing">Interviewing</option>
-              <option value="offered">Offered</option>
-              <option value="rejected">Rejected</option>
-              <option value="skipped">Skipped</option>
-            </select>
+        <section id="sect-jobs" class="tab-content">
+          <!-- Filter Bar -->
+          <div class="filter-bar">
+            <div class="filter-group">
+              <label for="filter-job-status">Status:</label>
+              <select id="filter-job-status" class="form-control">
+                <option value="">All Statuses</option>
+                <option value="new">New</option>
+                <option value="reviewed">Reviewed</option>
+                <option value="applied">Applied</option>
+                <option value="interviewing">Interviewing</option>
+                <option value="offered">Offered</option>
+                <option value="rejected">Rejected</option>
+                <option value="skipped">Skipped</option>
+              </select>
+            </div>
+
+            <div class="filter-group">
+              <label for="filter-job-tier">Score Filter:</label>
+              <select id="filter-job-tier" class="form-control">
+                <option value="all">All Jobs</option>
+                <option value="qualified" selected>Qualified Only (≥60 pts)</option>
+                <option value="near-misses">Near Misses (40–59 pts)</option>
+              </select>
+            </div>
+
+            <div class="filter-group flex-grow">
+              <label for="search-jobs">Search Title or Company:</label>
+              <input
+                type="text"
+                id="search-jobs"
+                class="form-control"
+                placeholder="e.g. HackerRank, Playwright, SDET..."
+              />
+            </div>
+
+            <div class="filter-group-checkbox">
+              <label class="checkbox-label">
+                <input type="checkbox" id="filter-stretch" /> Include Stretch Only
+              </label>
+            </div>
           </div>
 
-          <div class="filter-group">
-            <label for="filter-job-tier">Score Filter:</label>
-            <select id="filter-job-tier" class="form-control">
-              <option value="all">All Jobs</option>
-              <option value="qualified" selected>Qualified Only (≥60 pts)</option>
-              <option value="near-misses">Near Misses (40–59 pts)</option>
-            </select>
+          <!-- Jobs Grid Container -->
+          <div id="jobs-grid" class="jobs-grid">
+            <div class="loading-spinner-container">
+              <div class="spinner"></div>
+              <p>Loading jobs...</p>
+            </div>
           </div>
+        </section>
 
-          <div class="filter-group flex-grow">
-            <label for="search-jobs">Search Title or Company:</label>
-            <input type="text" id="search-jobs" class="form-control" placeholder="e.g. HackerRank, Playwright, SDET...">
-          </div>
-
-          <div class="filter-group-checkbox">
-            <label class="checkbox-label">
-              <input type="checkbox" id="filter-stretch"> Include Stretch Only
-            </label>
-          </div>
-        </div>
-
-        <!-- Jobs Grid Container -->
-        <div id="jobs-grid" class="jobs-grid">
-          <div class="loading-spinner-container">
-            <div class="spinner"></div>
-            <p>Loading jobs...</p>
-          </div>
-        </div>
-      </section>
-
-      <!-- =======================================================
+        <!-- =======================================================
            3. COMPANIES & SIGNALS PAGE
            ======================================================= -->
-      <section id="sect-companies" class="tab-content">
-        <div class="section-actions-row">
-          <div>
-            <h2>Monitored Target Companies & Signals</h2>
-            <p class="section-desc">Verified ATS endpoints and company expansion/hiring signals used by the 100-pt scorer.</p>
-          </div>
-          <div class="btn-group-row">
-            <button id="btn-add-company-modal" class="btn btn-primary">
-              <span>+</span> Add Target Company
-            </button>
-            <button id="btn-add-signal-modal" class="btn btn-secondary">
-              <span>+</span> Record Signal
-            </button>
-          </div>
-        </div>
-
-        <div class="companies-signals-split">
-          <!-- Targets Table -->
-          <div class="dashboard-panel flex-2">
-            <div class="panel-header">
-              <h3>Company ATS Targets</h3>
-              <span id="targets-count-badge" class="badge badge-info">0 targets</span>
+        <section id="sect-companies" class="tab-content">
+          <div class="section-actions-row">
+            <div>
+              <h2>Monitored Target Companies & Signals</h2>
+              <p class="section-desc">
+                Verified ATS endpoints and company expansion/hiring signals used by the 100-pt
+                scorer.
+              </p>
             </div>
+            <div class="btn-group-row">
+              <button id="btn-add-company-modal" class="btn btn-primary">
+                <span>+</span> Add Target Company
+              </button>
+              <button id="btn-add-signal-modal" class="btn btn-secondary">
+                <span>+</span> Record Signal
+              </button>
+            </div>
+          </div>
+
+          <div class="companies-signals-split">
+            <!-- Targets Table -->
+            <div class="dashboard-panel flex-2">
+              <div class="panel-header">
+                <h3>Company ATS Targets</h3>
+                <span id="targets-count-badge" class="badge badge-info">0 targets</span>
+              </div>
+              <div class="panel-body table-responsive">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th>Company</th>
+                      <th>ATS / Slug</th>
+                      <th>Verified</th>
+                      <th>Size Bucket</th>
+                      <th>Signals</th>
+                    </tr>
+                  </thead>
+                  <tbody id="targets-table-body">
+                    <!-- Populated via index.js -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Recorded Signals List -->
+            <div class="dashboard-panel flex-1">
+              <div class="panel-header">
+                <h3>Company Growth Signals</h3>
+                <span id="signals-count-badge" class="badge badge-info">0 signals</span>
+              </div>
+              <div id="signals-list" class="panel-body list-container">
+                <!-- Populated via index.js -->
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <!-- =======================================================
+           4. CONTACTS PAGE
+           ======================================================= -->
+        <section id="sect-contacts" class="tab-content">
+          <div class="section-actions-row">
+            <div>
+              <h2>Human Contacts Directory</h2>
+              <p class="section-desc">
+                Identified QA Leads, SDET Managers, and Tech Recruiters for targeted 1-to-1
+                outreach.
+              </p>
+            </div>
+            <div class="btn-group-row">
+              <button id="btn-infer-pattern-modal" class="btn btn-secondary">
+                <span>🔍</span> Infer Email Pattern
+              </button>
+              <button id="btn-add-contact-modal" class="btn btn-primary">
+                <span>+</span> Add Contact
+              </button>
+            </div>
+          </div>
+
+          <!-- Filter bar -->
+          <div class="filter-bar">
+            <div class="filter-group">
+              <label for="filter-contact-status">Email Status:</label>
+              <select id="filter-contact-status" class="form-control">
+                <option value="">All Statuses</option>
+                <option value="verified">Verified Only</option>
+                <option value="guessed">Guessed Pattern</option>
+                <option value="unknown">Unknown</option>
+              </select>
+            </div>
+            <div class="filter-group flex-grow">
+              <label for="search-contacts">Search Contact or Company:</label>
+              <input
+                type="text"
+                id="search-contacts"
+                class="form-control"
+                placeholder="Search by name, company, title..."
+              />
+            </div>
+          </div>
+
+          <div class="dashboard-panel">
             <div class="panel-body table-responsive">
               <table class="data-table">
                 <thead>
                   <tr>
+                    <th>Contact</th>
+                    <th>Title & Role</th>
                     <th>Company</th>
-                    <th>ATS / Slug</th>
-                    <th>Verified</th>
-                    <th>Size Bucket</th>
-                    <th>Signals</th>
+                    <th>Email & Status</th>
+                    <th>Timezone</th>
+                    <th>Actions</th>
                   </tr>
                 </thead>
-                <tbody id="targets-table-body">
+                <tbody id="contacts-table-body">
                   <!-- Populated via index.js -->
                 </tbody>
               </table>
             </div>
           </div>
+        </section>
 
-          <!-- Recorded Signals List -->
-          <div class="dashboard-panel flex-1">
-            <div class="panel-header">
-              <h3>Company Growth Signals</h3>
-              <span id="signals-count-badge" class="badge badge-info">0 signals</span>
-            </div>
-            <div id="signals-list" class="panel-body list-container">
-              <!-- Populated via index.js -->
-            </div>
-          </div>
-        </div>
-      </section>
-
-      <!-- =======================================================
-           4. CONTACTS PAGE
-           ======================================================= -->
-      <section id="sect-contacts" class="tab-content">
-        <div class="section-actions-row">
-          <div>
-            <h2>Human Contacts Directory</h2>
-            <p class="section-desc">Identified QA Leads, SDET Managers, and Tech Recruiters for targeted 1-to-1 outreach.</p>
-          </div>
-          <div class="btn-group-row">
-            <button id="btn-infer-pattern-modal" class="btn btn-secondary">
-              <span>🔍</span> Infer Email Pattern
-            </button>
-            <button id="btn-add-contact-modal" class="btn btn-primary">
-              <span>+</span> Add Contact
-            </button>
-          </div>
-        </div>
-
-        <!-- Filter bar -->
-        <div class="filter-bar">
-          <div class="filter-group">
-            <label for="filter-contact-status">Email Status:</label>
-            <select id="filter-contact-status" class="form-control">
-              <option value="">All Statuses</option>
-              <option value="verified">Verified Only</option>
-              <option value="guessed">Guessed Pattern</option>
-              <option value="unknown">Unknown</option>
-            </select>
-          </div>
-          <div class="filter-group flex-grow">
-            <label for="search-contacts">Search Contact or Company:</label>
-            <input type="text" id="search-contacts" class="form-control" placeholder="Search by name, company, title...">
-          </div>
-        </div>
-
-        <div class="dashboard-panel">
-          <div class="panel-body table-responsive">
-            <table class="data-table">
-              <thead>
-                <tr>
-                  <th>Contact</th>
-                  <th>Title & Role</th>
-                  <th>Company</th>
-                  <th>Email & Status</th>
-                  <th>Timezone</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody id="contacts-table-body">
-                <!-- Populated via index.js -->
-              </tbody>
-            </table>
-          </div>
-        </div>
-      </section>
-
-      <!-- =======================================================
+        <!-- =======================================================
            5. OUTREACH QUEUE PAGE
            ======================================================= -->
-      <section id="sect-outreach" class="tab-content">
-        <div class="section-actions-row">
-          <div>
-            <h2>Outreach Approvals & Dispatch Queue</h2>
-            <p class="section-desc">Human-in-the-loop review: inspect lint quality, enforce recipient send windows, and dispatch safely.</p>
+        <section id="sect-outreach" class="tab-content">
+          <div class="section-actions-row">
+            <div>
+              <h2>Outreach Approvals & Dispatch Queue</h2>
+              <p class="section-desc">
+                Human-in-the-loop review: inspect lint quality, enforce recipient send windows, and
+                dispatch safely.
+              </p>
+            </div>
+            <div class="btn-group-row">
+              <button id="btn-check-followups-tab" class="btn btn-secondary">
+                <span>🔄</span> Run Follow-up Cadence
+              </button>
+            </div>
           </div>
-          <div class="btn-group-row">
-            <button id="btn-check-followups-tab" class="btn btn-secondary">
-              <span>🔄</span> Run Follow-up Cadence
+
+          <!-- Sub-tabs for Outreach Status -->
+          <div class="subnav-tabs">
+            <button class="subnav-btn active" data-outreach-status="">All Outreach</button>
+            <button class="subnav-btn" data-outreach-status="draft">
+              Drafts (Awaiting Approval)
             </button>
+            <button class="subnav-btn" data-outreach-status="approved">
+              Approved (Ready To Send)
+            </button>
+            <button class="subnav-btn" data-outreach-status="sent">Sent</button>
+            <button class="subnav-btn" data-outreach-status="replied">Replied</button>
           </div>
-        </div>
 
-        <!-- Sub-tabs for Outreach Status -->
-        <div class="subnav-tabs">
-          <button class="subnav-btn active" data-outreach-status="">All Outreach</button>
-          <button class="subnav-btn" data-outreach-status="draft">Drafts (Awaiting Approval)</button>
-          <button class="subnav-btn" data-outreach-status="approved">Approved (Ready To Send)</button>
-          <button class="subnav-btn" data-outreach-status="sent">Sent</button>
-          <button class="subnav-btn" data-outreach-status="replied">Replied</button>
-        </div>
+          <div id="outreach-list" class="outreach-grid">
+            <!-- Populated via index.js -->
+          </div>
+        </section>
 
-        <div id="outreach-list" class="outreach-grid">
-          <!-- Populated via index.js -->
-        </div>
-      </section>
-
-      <!-- =======================================================
+        <!-- =======================================================
            6. ANALYTICS PAGE
            ======================================================= -->
-      <section id="sect-analytics" class="tab-content">
-        <div class="section-actions-row">
-          <div>
-            <h2>Job Search Pipeline & Safety Metrics</h2>
-            <p class="section-desc">Full visibility into conversion stages, scoring accuracy, and safety circuit breakers.</p>
-          </div>
-        </div>
-
-        <!-- Funnel Pipeline Card -->
-        <div class="dashboard-panel">
-          <div class="panel-header">
-            <h3>⚡ Copilot Funnel Progression</h3>
-          </div>
-          <div class="panel-body">
-            <div class="funnel-container" id="funnel-display">
-              <!-- Visual Funnel Bars -->
+        <section id="sect-analytics" class="tab-content">
+          <div class="section-actions-row">
+            <div>
+              <h2>Job Search Pipeline & Safety Metrics</h2>
+              <p class="section-desc">
+                Full visibility into conversion stages, scoring accuracy, and safety circuit
+                breakers.
+              </p>
             </div>
           </div>
-        </div>
 
-        <div class="today-grid">
-          <!-- Score Distribution Card -->
+          <!-- Funnel Pipeline Card -->
           <div class="dashboard-panel">
             <div class="panel-header">
-              <h3>🎯 Score Distribution</h3>
-            </div>
-            <div class="panel-body" id="score-distribution-chart">
-              <!-- Score bars -->
-            </div>
-          </div>
-
-          <!-- Safety Rails & Limits Card -->
-          <div class="dashboard-panel">
-            <div class="panel-header">
-              <h3>🛡️ Safety Circuit Breakers</h3>
+              <h3>⚡ Copilot Funnel Progression</h3>
             </div>
             <div class="panel-body">
-              <div class="safety-indicator-card">
-                <div class="safety-label">Daily Sending Cap:</div>
-                <div class="safety-progress-bar">
-                  <div id="meter-daily-sends" class="safety-progress-fill" style="width: 0%;"></div>
-                </div>
-                <div id="text-daily-sends" class="safety-subtext">0 / 20 sent today</div>
-              </div>
-
-              <div class="safety-indicator-card mt-4">
-                <div class="safety-label">Bounce Circuit Breaker (&lt;10%):</div>
-                <div class="safety-progress-bar">
-                  <div id="meter-bounce-rate" class="safety-progress-fill bg-success" style="width: 0%;"></div>
-                </div>
-                <div id="text-bounce-rate" class="safety-subtext">0.0% bounce rate (Status: Healthy)</div>
-              </div>
-
-              <div class="safety-indicator-card mt-4">
-                <div class="safety-label">Hunter.io Free Tier Quota:</div>
-                <div class="safety-progress-bar">
-                  <div id="meter-hunter-calls" class="safety-progress-fill bg-info" style="width: 0%;"></div>
-                </div>
-                <div id="text-hunter-calls" class="safety-subtext">0 / 25 calls used this month</div>
+              <div class="funnel-container" id="funnel-display">
+                <!-- Visual Funnel Bars -->
               </div>
             </div>
           </div>
-        </div>
-      </section>
 
-      <!-- =======================================================
-           7. SETTINGS & HEALTH PAGE
-           ======================================================= -->
-      <section id="sect-settings" class="tab-content">
-        <div class="section-actions-row">
-          <div>
-            <h2>Settings, Diagnostics & Data Management</h2>
-            <p class="section-desc">Candidate profile configuration, system health diagnostics, and local database backups.</p>
-          </div>
-        </div>
-
-        <div class="today-grid">
-          <!-- Candidate Profile Card -->
-          <div class="dashboard-panel">
-            <div class="panel-header">
-              <h3>📄 Candidate Profile Configuration</h3>
-              <button id="btn-save-profile" class="btn btn-sm btn-primary">Save Profile</button>
-            </div>
-            <div class="panel-body">
-              <form id="form-profile">
-                <div class="form-group">
-                  <label for="prof-input-name">Full Name:</label>
-                  <input type="text" id="prof-input-name" class="form-control">
-                </div>
-                <div class="form-group">
-                  <label for="prof-input-email">Email:</label>
-                  <input type="email" id="prof-input-email" class="form-control">
-                </div>
-                <div class="form-group">
-                  <label for="prof-input-role">Target Role:</label>
-                  <input type="text" id="prof-input-role" class="form-control">
-                </div>
-                <div class="form-group">
-                  <label for="prof-input-exp">Years of Experience:</label>
-                  <input type="number" id="prof-input-exp" class="form-control">
-                </div>
-                <div class="form-group">
-                  <label for="prof-input-salary">Min Salary (LPA):</label>
-                  <input type="number" id="prof-input-salary" class="form-control">
-                </div>
-                <div class="form-group-checkbox mt-2">
-                  <label class="checkbox-label">
-                    <input type="checkbox" id="prof-input-reviewed"> Profile & Skills Reviewed (Removes doctor warning)
-                  </label>
-                </div>
-              </form>
-            </div>
-          </div>
-
-          <!-- Doctor & Database Operations -->
-          <div class="space-y-4">
-            <!-- Doctor Diagnostics Card -->
+          <div class="today-grid">
+            <!-- Score Distribution Card -->
             <div class="dashboard-panel">
               <div class="panel-header">
-                <h3>🩺 System Health Diagnostics (doctor)</h3>
-                <button id="btn-run-doctor-card" class="btn btn-sm btn-secondary">Run Diagnostics</button>
+                <h3>🎯 Score Distribution</h3>
               </div>
-              <div id="doctor-results-list" class="panel-body list-container">
-                <div class="empty-state">Click "Run Diagnostics" to check system health.</div>
+              <div class="panel-body" id="score-distribution-chart">
+                <!-- Score bars -->
               </div>
             </div>
 
-            <!-- Database & Export Card -->
+            <!-- Safety Rails & Limits Card -->
             <div class="dashboard-panel">
               <div class="panel-header">
-                <h3>💾 Database & Data Export</h3>
+                <h3>🛡️ Safety Circuit Breakers</h3>
               </div>
               <div class="panel-body">
-                <p class="text-muted mb-4">SQLite database stored locally with WAL mode enabled. Strictly localhost-only.</p>
-                <div class="btn-group-row">
-                  <button id="btn-backup-db" class="btn btn-secondary">
-                    <span>💾</span> Backup Database Now
-                  </button>
-                  <button id="btn-export-jobs-json" class="btn btn-secondary">
-                    <span>📥</span> Export Jobs (JSON)
-                  </button>
-                  <button id="btn-export-contacts-json" class="btn btn-secondary">
-                    <span>👥</span> Export Contacts (JSON)
-                  </button>
+                <div class="safety-indicator-card">
+                  <div class="safety-label">Daily Sending Cap:</div>
+                  <div class="safety-progress-bar">
+                    <div
+                      id="meter-daily-sends"
+                      class="safety-progress-fill"
+                      style="width: 0%"
+                    ></div>
+                  </div>
+                  <div id="text-daily-sends" class="safety-subtext">0 / 20 sent today</div>
+                </div>
+
+                <div class="safety-indicator-card mt-4">
+                  <div class="safety-label">Bounce Circuit Breaker (&lt;10%):</div>
+                  <div class="safety-progress-bar">
+                    <div
+                      id="meter-bounce-rate"
+                      class="safety-progress-fill bg-success"
+                      style="width: 0%"
+                    ></div>
+                  </div>
+                  <div id="text-bounce-rate" class="safety-subtext">
+                    0.0% bounce rate (Status: Healthy)
+                  </div>
+                </div>
+
+                <div class="safety-indicator-card mt-4">
+                  <div class="safety-label">Hunter.io Free Tier Quota:</div>
+                  <div class="safety-progress-bar">
+                    <div
+                      id="meter-hunter-calls"
+                      class="safety-progress-fill bg-info"
+                      style="width: 0%"
+                    ></div>
+                  </div>
+                  <div id="text-hunter-calls" class="safety-subtext">
+                    0 / 25 calls used this month
+                  </div>
                 </div>
               </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
 
-    </main>
-  </div>
+        <!-- =======================================================
+           7. SETTINGS & HEALTH PAGE
+           ======================================================= -->
+        <section id="sect-settings" class="tab-content">
+          <div class="section-actions-row">
+            <div>
+              <h2>Settings, Diagnostics & Data Management</h2>
+              <p class="section-desc">
+                Candidate profile configuration, system health diagnostics, and local database
+                backups.
+              </p>
+            </div>
+          </div>
 
-  <!-- =========================================================
+          <div class="today-grid">
+            <!-- Candidate Profile Card -->
+            <div class="dashboard-panel">
+              <div class="panel-header">
+                <h3>📄 Candidate Profile Configuration</h3>
+                <button id="btn-save-profile" class="btn btn-sm btn-primary">Save Profile</button>
+              </div>
+              <div class="panel-body">
+                <form id="form-profile">
+                  <div class="form-group">
+                    <label for="prof-input-name">Full Name:</label>
+                    <input type="text" id="prof-input-name" class="form-control" />
+                  </div>
+                  <div class="form-group">
+                    <label for="prof-input-email">Email:</label>
+                    <input type="email" id="prof-input-email" class="form-control" />
+                  </div>
+                  <div class="form-group">
+                    <label for="prof-input-role">Target Role:</label>
+                    <input type="text" id="prof-input-role" class="form-control" />
+                  </div>
+                  <div class="form-group">
+                    <label for="prof-input-exp">Years of Experience:</label>
+                    <input type="number" id="prof-input-exp" class="form-control" />
+                  </div>
+                  <div class="form-group">
+                    <label for="prof-input-salary">Min Salary (LPA):</label>
+                    <input type="number" id="prof-input-salary" class="form-control" />
+                  </div>
+                  <div class="form-group-checkbox mt-2">
+                    <label class="checkbox-label">
+                      <input type="checkbox" id="prof-input-reviewed" /> Profile & Skills Reviewed
+                      (Removes doctor warning)
+                    </label>
+                  </div>
+                </form>
+              </div>
+            </div>
+
+            <!-- Doctor & Database Operations -->
+            <div class="space-y-4">
+              <!-- Doctor Diagnostics Card -->
+              <div class="dashboard-panel">
+                <div class="panel-header">
+                  <h3>🩺 System Health Diagnostics (doctor)</h3>
+                  <button id="btn-run-doctor-card" class="btn btn-sm btn-secondary">
+                    Run Diagnostics
+                  </button>
+                </div>
+                <div id="doctor-results-list" class="panel-body list-container">
+                  <div class="empty-state">Click "Run Diagnostics" to check system health.</div>
+                </div>
+              </div>
+
+              <!-- Database & Export Card -->
+              <div class="dashboard-panel">
+                <div class="panel-header">
+                  <h3>💾 Database & Data Export</h3>
+                </div>
+                <div class="panel-body">
+                  <p class="text-muted mb-4">
+                    SQLite database stored locally with WAL mode enabled. Strictly localhost-only.
+                  </p>
+                  <div class="btn-group-row">
+                    <button id="btn-backup-db" class="btn btn-secondary">
+                      <span>💾</span> Backup Database Now
+                    </button>
+                    <button id="btn-export-jobs-json" class="btn btn-secondary">
+                      <span>📥</span> Export Jobs (JSON)
+                    </button>
+                    <button id="btn-export-contacts-json" class="btn btn-secondary">
+                      <span>👥</span> Export Contacts (JSON)
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- =========================================================
        MODALS
        ========================================================= -->
 
-  <!-- Modal: Tailored Resume & Keyword Diff -->
-  <div id="tailor-modal" class="modal" aria-hidden="true">
-    <div class="modal-dialog max-w-2xl">
-      <div class="modal-header">
-        <h2 id="tailor-modal-title">Tailored Resume & Keyword Gap</h2>
-        <button id="btn-close-tailor-modal" class="modal-close-btn">&times;</button>
-      </div>
-      <div class="modal-body">
-        <div id="tailor-summary-box" class="summary-box mb-4"></div>
-        <div class="tabs-header-sub">
-          <h4>Tailored Markdown Content:</h4>
+    <!-- Modal: Tailored Resume & Keyword Diff -->
+    <div id="tailor-modal" class="modal" aria-hidden="true">
+      <div class="modal-dialog max-w-2xl">
+        <div class="modal-header">
+          <h2 id="tailor-modal-title">Tailored Resume & Keyword Gap</h2>
+          <button id="btn-close-tailor-modal" class="modal-close-btn">&times;</button>
         </div>
-        <textarea id="tailor-markdown-preview" class="form-control font-mono" rows="14" readonly></textarea>
-        <div class="modal-footer-row mt-4">
-          <button id="btn-copy-tailor" class="btn btn-secondary">Copy Markdown</button>
-          <button id="btn-close-tailor" class="btn btn-primary">Done</button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal: Edit Outreach Draft -->
-  <div id="edit-draft-modal" class="modal" aria-hidden="true">
-    <div class="modal-dialog max-w-lg">
-      <div class="modal-header">
-        <h2>Edit Outreach Draft</h2>
-        <button id="btn-close-edit-modal" class="modal-close-btn">&times;</button>
-      </div>
-      <div class="modal-body">
-        <form id="form-edit-draft">
-          <input type="hidden" id="edit-draft-id">
-          <div class="form-group">
-            <div class="label-row">
-              <label for="edit-draft-subject">Subject line:</label>
-              <span id="edit-subject-wordcount" class="word-count-badge">0 words (&lt;8)</span>
-            </div>
-            <input type="text" id="edit-draft-subject" class="form-control" required>
+        <div class="modal-body">
+          <div id="tailor-summary-box" class="summary-box mb-4"></div>
+          <div class="tabs-header-sub">
+            <h4>Tailored Markdown Content:</h4>
           </div>
-          <div class="form-group">
-            <div class="label-row">
-              <label for="edit-draft-body">Body:</label>
-              <span id="edit-body-wordcount" class="word-count-badge">0 words (80–120)</span>
-            </div>
-            <textarea id="edit-draft-body" class="form-control font-mono" rows="10" required></textarea>
-          </div>
-          <div id="edit-lint-preview" class="lint-preview-box"></div>
+          <textarea
+            id="tailor-markdown-preview"
+            class="form-control font-mono"
+            rows="14"
+            readonly
+          ></textarea>
           <div class="modal-footer-row mt-4">
-            <button type="button" id="btn-cancel-edit" class="btn btn-secondary">Cancel</button>
-            <button type="submit" class="btn btn-primary">Save Draft</button>
+            <button id="btn-copy-tailor" class="btn btn-secondary">Copy Markdown</button>
+            <button id="btn-close-tailor" class="btn btn-primary">Done</button>
           </div>
-        </form>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal: Update Job Status / Direct Application -->
-  <div id="status-modal" class="modal" aria-hidden="true">
-    <div class="modal-dialog max-w-sm">
-      <div class="modal-header">
-        <h2>Update Application Status</h2>
-        <button id="btn-close-status-modal" class="modal-close-btn">&times;</button>
-      </div>
-      <div class="modal-body">
-        <form id="form-update-status">
-          <input type="hidden" id="status-job-id">
-          <div class="form-group">
-            <label for="job-status-select">Current Status:</label>
-            <select id="job-status-select" class="form-control">
-              <option value="new">New</option>
-              <option value="reviewed">Reviewed</option>
-              <option value="applied">Applied (Direct Application)</option>
-              <option value="interviewing">Interviewing</option>
-              <option value="offered">Offered</option>
-              <option value="rejected">Rejected</option>
-              <option value="skipped">Skipped</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="job-notes-input">Application / Interview Notes:</label>
-            <textarea id="job-notes-input" class="form-control" rows="4" placeholder="Enter notes, recruiter contact, follow-up dates..."></textarea>
-          </div>
-          <button type="submit" class="btn btn-primary btn-block">Save Status</button>
-        </form>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal: Add Company Target -->
-  <div id="add-company-modal" class="modal" aria-hidden="true">
-    <div class="modal-dialog max-w-md">
-      <div class="modal-header">
-        <h2>Add Target Company</h2>
-        <button id="btn-close-add-company" class="modal-close-btn">&times;</button>
-      </div>
-      <div class="modal-body">
-        <form id="form-add-company">
-          <div class="form-group">
-            <label for="add-company-url">Careers / Job Board URL:</label>
-            <input type="url" id="add-company-url" class="form-control" placeholder="e.g. https://boards.greenhouse.io/postman" required>
-            <span class="help-text">Auto-detects Greenhouse, Lever, Ashby, Workable or custom Playwright fallback.</span>
-          </div>
-          <button type="submit" class="btn btn-primary btn-block mt-4">Detect & Add Target</button>
-        </form>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal: Add Growth Signal -->
-  <div id="add-signal-modal" class="modal" aria-hidden="true">
-    <div class="modal-dialog max-w-md">
-      <div class="modal-header">
-        <h2>Record Company Growth Signal</h2>
-        <button id="btn-close-add-signal" class="modal-close-btn">&times;</button>
-      </div>
-      <div class="modal-body">
-        <form id="form-add-signal">
-          <div class="form-group">
-            <label for="add-signal-company">Company Name:</label>
-            <input type="text" id="add-signal-company" class="form-control" placeholder="e.g. HackerRank" required>
-          </div>
-          <div class="form-group">
-            <label for="add-signal-type">Signal Type:</label>
-            <select id="add-signal-type" class="form-control">
-              <option value="hiring_surge">Hiring Surge / Team Expansion</option>
-              <option value="funding">Funding Round / Investment</option>
-              <option value="product_launch">New Product / Tech Initiative</option>
-              <option value="leadership">Key Leadership Hire</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="add-signal-detail">Signal Detail:</label>
-            <input type="text" id="add-signal-detail" class="form-control" placeholder="e.g. Raised Series C, expanding QA automation" required>
-          </div>
-          <div class="form-group">
-            <label for="add-signal-url">Verification URL (Required for Scorer Bonus):</label>
-            <input type="url" id="add-signal-url" class="form-control" placeholder="https://techcrunch.com/..." required>
-          </div>
-          <button type="submit" class="btn btn-primary btn-block mt-4">Save Signal</button>
-        </form>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal: Add Contact -->
-  <div id="add-contact-modal" class="modal" aria-hidden="true">
-    <div class="modal-dialog max-w-md">
-      <div class="modal-header">
-        <h2>Add Human Contact</h2>
-        <button id="btn-close-add-contact" class="modal-close-btn">&times;</button>
-      </div>
-      <div class="modal-body">
-        <form id="form-add-contact">
-          <div class="form-group">
-            <label for="contact-company-id">Target Company:</label>
-            <select id="contact-company-id" class="form-control" required>
-              <!-- Populated via index.js -->
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="contact-fullname">Full Name:</label>
-            <input type="text" id="contact-fullname" class="form-control" placeholder="e.g. Priya Sharma" required>
-          </div>
-          <div class="form-group">
-            <label for="contact-title">Title:</label>
-            <input type="text" id="contact-title" class="form-control" placeholder="e.g. QA Manager, Lead SDET, Recruiter" required>
-          </div>
-          <div class="form-group">
-            <label for="contact-type">Persona Role:</label>
-            <select id="contact-type" class="form-control">
-              <option value="qa_manager">QA Engineering Manager</option>
-              <option value="sdet_lead">Lead SDET / Staff QA</option>
-              <option value="engineering_lead">Engineering Director / VP</option>
-              <option value="recruiter">Technical Recruiter</option>
-              <option value="generic_careers">Generic / Other</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="contact-email">Email Address:</label>
-            <input type="email" id="contact-email" class="form-control" placeholder="priya.sharma@company.com">
-          </div>
-          <div class="form-group">
-            <label for="contact-timezone">Timezone:</label>
-            <select id="contact-timezone" class="form-control">
-              <option value="Asia/Kolkata">Asia/Kolkata (IST)</option>
-              <option value="America/New_York">America/New_York (EDT/EST)</option>
-              <option value="America/Los_Angeles">America/Los_Angeles (PDT/PST)</option>
-              <option value="Europe/London">Europe/London (BST/GMT)</option>
-              <option value="UTC">UTC</option>
-            </select>
-          </div>
-          <div class="form-group">
-            <label for="contact-linkedin">LinkedIn URL:</label>
-            <input type="url" id="contact-linkedin" class="form-control" placeholder="https://linkedin.com/in/...">
-          </div>
-          <button type="submit" class="btn btn-primary btn-block mt-4">Save Contact</button>
-        </form>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modal: Infer Email Pattern -->
-  <div id="infer-pattern-modal" class="modal" aria-hidden="true">
-    <div class="modal-dialog max-w-md">
-      <div class="modal-header">
-        <h2>Infer Corporate Email Pattern</h2>
-        <button id="btn-close-infer-modal" class="modal-close-btn">&times;</button>
-      </div>
-      <div class="modal-body">
-        <form id="form-infer-pattern">
-          <div class="form-group">
-            <label for="infer-domain">Company Domain:</label>
-            <input type="text" id="infer-domain" class="form-control" placeholder="e.g. hackerrank.com" required>
-          </div>
-          <div class="form-group">
-            <label for="infer-name">Full Name:</label>
-            <input type="text" id="infer-name" class="form-control" placeholder="e.g. Priya Sharma" required>
-          </div>
-          <button type="submit" class="btn btn-secondary btn-block mt-2">Generate Predictions</button>
-        </form>
-        <div id="infer-results-container" class="mt-4 hidden">
-          <h4>Generated Email Proposals:</h4>
-          <div id="infer-proposals-list" class="list-container mt-2"></div>
         </div>
       </div>
     </div>
-  </div>
 
-  <script src="index.js"></script>
-</body>
+    <!-- Modal: Edit Outreach Draft -->
+    <div id="edit-draft-modal" class="modal" aria-hidden="true">
+      <div class="modal-dialog max-w-lg">
+        <div class="modal-header">
+          <h2>Edit Outreach Draft</h2>
+          <button id="btn-close-edit-modal" class="modal-close-btn">&times;</button>
+        </div>
+        <div class="modal-body">
+          <form id="form-edit-draft">
+            <input type="hidden" id="edit-draft-id" />
+            <div class="form-group">
+              <div class="label-row">
+                <label for="edit-draft-subject">Subject line:</label>
+                <span id="edit-subject-wordcount" class="word-count-badge">0 words (&lt;8)</span>
+              </div>
+              <input type="text" id="edit-draft-subject" class="form-control" required />
+            </div>
+            <div class="form-group">
+              <div class="label-row">
+                <label for="edit-draft-body">Body:</label>
+                <span id="edit-body-wordcount" class="word-count-badge">0 words (80–120)</span>
+              </div>
+              <textarea
+                id="edit-draft-body"
+                class="form-control font-mono"
+                rows="10"
+                required
+              ></textarea>
+            </div>
+            <div id="edit-lint-preview" class="lint-preview-box"></div>
+            <div class="modal-footer-row mt-4">
+              <button type="button" id="btn-cancel-edit" class="btn btn-secondary">Cancel</button>
+              <button type="submit" class="btn btn-primary">Save Draft</button>
+            </div>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Update Job Status / Direct Application -->
+    <div id="status-modal" class="modal" aria-hidden="true">
+      <div class="modal-dialog max-w-sm">
+        <div class="modal-header">
+          <h2>Update Application Status</h2>
+          <button id="btn-close-status-modal" class="modal-close-btn">&times;</button>
+        </div>
+        <div class="modal-body">
+          <form id="form-update-status">
+            <input type="hidden" id="status-job-id" />
+            <div class="form-group">
+              <label for="job-status-select">Current Status:</label>
+              <select id="job-status-select" class="form-control">
+                <option value="new">New</option>
+                <option value="reviewed">Reviewed</option>
+                <option value="applied">Applied (Direct Application)</option>
+                <option value="interviewing">Interviewing</option>
+                <option value="offered">Offered</option>
+                <option value="rejected">Rejected</option>
+                <option value="skipped">Skipped</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="job-notes-input">Application / Interview Notes:</label>
+              <textarea
+                id="job-notes-input"
+                class="form-control"
+                rows="4"
+                placeholder="Enter notes, recruiter contact, follow-up dates..."
+              ></textarea>
+            </div>
+            <button type="submit" class="btn btn-primary btn-block">Save Status</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Add Company Target -->
+    <div id="add-company-modal" class="modal" aria-hidden="true">
+      <div class="modal-dialog max-w-md">
+        <div class="modal-header">
+          <h2>Add Target Company</h2>
+          <button id="btn-close-add-company" class="modal-close-btn">&times;</button>
+        </div>
+        <div class="modal-body">
+          <form id="form-add-company">
+            <div class="form-group">
+              <label for="add-company-url">Careers / Job Board URL:</label>
+              <input
+                type="url"
+                id="add-company-url"
+                class="form-control"
+                placeholder="e.g. https://boards.greenhouse.io/postman"
+                required
+              />
+              <span class="help-text"
+                >Auto-detects Greenhouse, Lever, Ashby, Workable or custom Playwright
+                fallback.</span
+              >
+            </div>
+            <button type="submit" class="btn btn-primary btn-block mt-4">
+              Detect & Add Target
+            </button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Add Growth Signal -->
+    <div id="add-signal-modal" class="modal" aria-hidden="true">
+      <div class="modal-dialog max-w-md">
+        <div class="modal-header">
+          <h2>Record Company Growth Signal</h2>
+          <button id="btn-close-add-signal" class="modal-close-btn">&times;</button>
+        </div>
+        <div class="modal-body">
+          <form id="form-add-signal">
+            <div class="form-group">
+              <label for="add-signal-company">Company Name:</label>
+              <input
+                type="text"
+                id="add-signal-company"
+                class="form-control"
+                placeholder="e.g. HackerRank"
+                required
+              />
+            </div>
+            <div class="form-group">
+              <label for="add-signal-type">Signal Type:</label>
+              <select id="add-signal-type" class="form-control">
+                <option value="hiring_surge">Hiring Surge / Team Expansion</option>
+                <option value="funding">Funding Round / Investment</option>
+                <option value="product_launch">New Product / Tech Initiative</option>
+                <option value="leadership">Key Leadership Hire</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="add-signal-detail">Signal Detail:</label>
+              <input
+                type="text"
+                id="add-signal-detail"
+                class="form-control"
+                placeholder="e.g. Raised Series C, expanding QA automation"
+                required
+              />
+            </div>
+            <div class="form-group">
+              <label for="add-signal-url">Verification URL (Required for Scorer Bonus):</label>
+              <input
+                type="url"
+                id="add-signal-url"
+                class="form-control"
+                placeholder="https://techcrunch.com/..."
+                required
+              />
+            </div>
+            <button type="submit" class="btn btn-primary btn-block mt-4">Save Signal</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Add Contact -->
+    <div id="add-contact-modal" class="modal" aria-hidden="true">
+      <div class="modal-dialog max-w-md">
+        <div class="modal-header">
+          <h2>Add Human Contact</h2>
+          <button id="btn-close-add-contact" class="modal-close-btn">&times;</button>
+        </div>
+        <div class="modal-body">
+          <form id="form-add-contact">
+            <div class="form-group">
+              <label for="contact-company-id">Target Company:</label>
+              <select id="contact-company-id" class="form-control" required>
+                <!-- Populated via index.js -->
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="contact-fullname">Full Name:</label>
+              <input
+                type="text"
+                id="contact-fullname"
+                class="form-control"
+                placeholder="e.g. Priya Sharma"
+                required
+              />
+            </div>
+            <div class="form-group">
+              <label for="contact-title">Title:</label>
+              <input
+                type="text"
+                id="contact-title"
+                class="form-control"
+                placeholder="e.g. QA Manager, Lead SDET, Recruiter"
+                required
+              />
+            </div>
+            <div class="form-group">
+              <label for="contact-type">Persona Role:</label>
+              <select id="contact-type" class="form-control">
+                <option value="qa_manager">QA Engineering Manager</option>
+                <option value="sdet_lead">Lead SDET / Staff QA</option>
+                <option value="engineering_lead">Engineering Director / VP</option>
+                <option value="recruiter">Technical Recruiter</option>
+                <option value="generic_careers">Generic / Other</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="contact-email">Email Address:</label>
+              <input
+                type="email"
+                id="contact-email"
+                class="form-control"
+                placeholder="priya.sharma@company.com"
+              />
+            </div>
+            <div class="form-group">
+              <label for="contact-timezone">Timezone:</label>
+              <select id="contact-timezone" class="form-control">
+                <option value="Asia/Kolkata">Asia/Kolkata (IST)</option>
+                <option value="America/New_York">America/New_York (EDT/EST)</option>
+                <option value="America/Los_Angeles">America/Los_Angeles (PDT/PST)</option>
+                <option value="Europe/London">Europe/London (BST/GMT)</option>
+                <option value="UTC">UTC</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="contact-linkedin">LinkedIn URL:</label>
+              <input
+                type="url"
+                id="contact-linkedin"
+                class="form-control"
+                placeholder="https://linkedin.com/in/..."
+              />
+            </div>
+            <button type="submit" class="btn btn-primary btn-block mt-4">Save Contact</button>
+          </form>
+        </div>
+      </div>
+    </div>
+
+    <!-- Modal: Infer Email Pattern -->
+    <div id="infer-pattern-modal" class="modal" aria-hidden="true">
+      <div class="modal-dialog max-w-md">
+        <div class="modal-header">
+          <h2>Infer Corporate Email Pattern</h2>
+          <button id="btn-close-infer-modal" class="modal-close-btn">&times;</button>
+        </div>
+        <div class="modal-body">
+          <form id="form-infer-pattern">
+            <div class="form-group">
+              <label for="infer-domain">Company Domain:</label>
+              <input
+                type="text"
+                id="infer-domain"
+                class="form-control"
+                placeholder="e.g. hackerrank.com"
+                required
+              />
+            </div>
+            <div class="form-group">
+              <label for="infer-name">Full Name:</label>
+              <input
+                type="text"
+                id="infer-name"
+                class="form-control"
+                placeholder="e.g. Priya Sharma"
+                required
+              />
+            </div>
+            <button type="submit" class="btn btn-secondary btn-block mt-2">
+              Generate Predictions
+            </button>
+          </form>
+          <div id="infer-results-container" class="mt-4 hidden">
+            <h4>Generated Email Proposals:</h4>
+            <div id="infer-proposals-list" class="list-container mt-2"></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script src="index.js"></script>
+  </body>
 </html>

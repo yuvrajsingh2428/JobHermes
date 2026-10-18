@@ -31,7 +31,9 @@ export class AdzunaSource implements JobSource {
     const appKey = process.env.ADZUNA_APP_KEY;
 
     if (!appId || !appKey) {
-      logger.debug('Adzuna API credentials not configured (ADZUNA_APP_ID / ADZUNA_APP_KEY), skipping gracefully.');
+      logger.debug(
+        'Adzuna API credentials not configured (ADZUNA_APP_ID / ADZUNA_APP_KEY), skipping gracefully.'
+      );
       return [];
     }
 

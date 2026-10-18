@@ -105,7 +105,14 @@ export class StorageService {
       .prepare(
         `UPDATE jobs SET score = ?, score_breakdown = ?, stretch = ?, reasons = ?, near_miss = ?, updated_at = datetime('now') WHERE id = ?`
       )
-      .run(score, JSON.stringify(breakdown), breakdown.stretch ? 1 : 0, JSON.stringify(breakdown.reasons), isNearMiss, id);
+      .run(
+        score,
+        JSON.stringify(breakdown),
+        breakdown.stretch ? 1 : 0,
+        JSON.stringify(breakdown.reasons),
+        isNearMiss,
+        id
+      );
   }
 
   updateJobStatus(id: number, status: ApplicationStatus, notes?: string): void {
@@ -133,12 +140,14 @@ export class StorageService {
   }
 
   getJobById(id: number): JobPosting | undefined {
-    const row = this.db.prepare('SELECT * FROM jobs WHERE id = ?').get(id) as Record<string, unknown> | undefined;
+    const row = this.db.prepare('SELECT * FROM jobs WHERE id = ?').get(id) as
+      Record<string, unknown> | undefined;
     return row ? this.rowToJob(row) : undefined;
   }
 
   getJobByUrl(url: string): JobPosting | undefined {
-    const row = this.db.prepare('SELECT * FROM jobs WHERE url = ?').get(url) as Record<string, unknown> | undefined;
+    const row = this.db.prepare('SELECT * FROM jobs WHERE url = ?').get(url) as
+      Record<string, unknown> | undefined;
     return row ? this.rowToJob(row) : undefined;
   }
 
@@ -177,14 +186,23 @@ export class StorageService {
     if (filters?.nearMisses) {
       query += ' AND (near_miss = 1 OR (score >= 40 AND score < 60))';
     } else {
-      if (filters?.minScore !== undefined) { query += ' AND score >= ?'; params.push(filters.minScore); }
-      if (filters?.maxScore !== undefined) { query += ' AND score <= ?'; params.push(filters.maxScore); }
+      if (filters?.minScore !== undefined) {
+        query += ' AND score >= ?';
+        params.push(filters.minScore);
+      }
+      if (filters?.maxScore !== undefined) {
+        query += ' AND score <= ?';
+        params.push(filters.maxScore);
+      }
     }
     if (filters?.stretch !== undefined) {
       query += ' AND stretch = ?';
       params.push(filters.stretch ? 1 : 0);
     }
-    if (filters?.company) { query += ' AND company LIKE ?'; params.push(`%${filters.company}%`); }
+    if (filters?.company) {
+      query += ' AND company LIKE ?';
+      params.push(`%${filters.company}%`);
+    }
     if (filters?.search) {
       query += ' AND (title LIKE ? OR company LIKE ? OR description LIKE ?)';
       params.push(`%${filters.search}%`, `%${filters.search}%`, `%${filters.search}%`);
@@ -192,41 +210,87 @@ export class StorageService {
 
     query += ' ORDER BY score DESC, scraped_at DESC';
 
-    if (filters?.limit) { query += ' LIMIT ?'; params.push(filters.limit); }
+    if (filters?.limit) {
+      query += ' LIMIT ?';
+      params.push(filters.limit);
+    }
 
     const rows = this.db.prepare(query).all(...params) as Record<string, unknown>[];
     return rows.map((r) => this.rowToJob(r));
   }
 
-  recordJobSightings(scannedCompany: string, seenUrls: Set<string>): { newlyClosed: number[]; activeCount: number } {
-    const existing = this.db.prepare(
-      `SELECT id, url, consecutive_missed_scans, status FROM jobs WHERE company = ? AND status != 'closed'`
-    ).all(scannedCompany) as { id: number; url: string; consecutive_missed_scans: number; status: string }[];
+  recordJobSightings(
+    scannedCompany: string,
+    seenUrls: Set<string>,
+    options?: { fetchSucceeded?: boolean; skipIfEmptyWhenHadJobs?: boolean }
+  ): { newlyClosed: number[]; activeCount: number; skipped?: boolean; reason?: string } {
+    const existing = this.db
+      .prepare(
+        `SELECT id, url, consecutive_missed_scans, status FROM jobs WHERE company = ? AND status != 'closed'`
+      )
+      .all(scannedCompany) as {
+      id: number;
+      url: string;
+      consecutive_missed_scans: number;
+      status: string;
+    }[];
+
+    // 1. If fetch failed (timeout, 4xx/5xx, parse failure), do NOT count misses
+    if (options?.fetchSucceeded === false) {
+      logger.warn(`Stale-job detection skipped for ${scannedCompany}: fetch did not succeed.`);
+      return {
+        newlyClosed: [],
+        activeCount: existing.length,
+        skipped: true,
+        reason: 'fetch_failed',
+      };
+    }
+
+    // 2. If response is empty (0 seen URLs) but company previously returned active jobs, do NOT count misses
+    if (seenUrls.size === 0 && existing.length > 0 && options?.skipIfEmptyWhenHadJobs !== false) {
+      logger.warn(
+        `Stale-job detection skipped for ${scannedCompany}: received empty response (0 jobs) but company has ${existing.length} previously active jobs.`
+      );
+      return {
+        newlyClosed: [],
+        activeCount: existing.length,
+        skipped: true,
+        reason: 'empty_response_with_existing_jobs',
+      };
+    }
 
     const newlyClosed: number[] = [];
 
     for (const job of existing) {
       if (seenUrls.has(job.url)) {
-        this.db.prepare(
-          `UPDATE jobs SET consecutive_missed_scans = 0, updated_at = datetime('now') WHERE id = ?`
-        ).run(job.id);
+        this.db
+          .prepare(
+            `UPDATE jobs SET consecutive_missed_scans = 0, updated_at = datetime('now') WHERE id = ?`
+          )
+          .run(job.id);
       } else {
         const missed = (job.consecutive_missed_scans || 0) + 1;
         if (missed >= 2) {
-          this.db.prepare(
-            `UPDATE jobs SET consecutive_missed_scans = ?, status = 'closed', updated_at = datetime('now') WHERE id = ?`
-          ).run(missed, job.id);
+          this.db
+            .prepare(
+              `UPDATE jobs SET consecutive_missed_scans = ?, status = 'closed', updated_at = datetime('now') WHERE id = ?`
+            )
+            .run(missed, job.id);
           newlyClosed.push(job.id);
-          logger.warn(`Job #${job.id} absent from ${scannedCompany} for 2 consecutive scans. Marked status 'closed'.`);
+          logger.warn(
+            `Job #${job.id} absent from ${scannedCompany} for 2 consecutive scans. Marked status 'closed'.`
+          );
         } else {
-          this.db.prepare(
-            `UPDATE jobs SET consecutive_missed_scans = ?, updated_at = datetime('now') WHERE id = ?`
-          ).run(missed, job.id);
+          this.db
+            .prepare(
+              `UPDATE jobs SET consecutive_missed_scans = ?, updated_at = datetime('now') WHERE id = ?`
+            )
+            .run(missed, job.id);
         }
       }
     }
 
-    return { newlyClosed, activeCount: existing.length - newlyClosed.length };
+    return { newlyClosed, activeCount: existing.length - newlyClosed.length, skipped: false };
   }
 
   deleteJob(id: number): boolean {
@@ -247,7 +311,11 @@ export class StorageService {
 
   countJobs(since?: string): number {
     if (since) {
-      return (this.db.prepare('SELECT COUNT(*) as c FROM jobs WHERE scraped_at >= ?').get(since) as { c: number }).c;
+      return (
+        this.db.prepare('SELECT COUNT(*) as c FROM jobs WHERE scraped_at >= ?').get(since) as {
+          c: number;
+        }
+      ).c;
     }
     return (this.db.prepare('SELECT COUNT(*) as c FROM jobs').get() as { c: number }).c;
   }
@@ -322,33 +390,45 @@ export class StorageService {
   }
 
   getCompanyByName(name: string): CompanyRecord | undefined {
-    const row = this.db.prepare('SELECT * FROM companies WHERE LOWER(name) = LOWER(?)').get(name) as Record<string, unknown> | undefined;
+    const row = this.db
+      .prepare('SELECT * FROM companies WHERE LOWER(name) = LOWER(?)')
+      .get(name) as Record<string, unknown> | undefined;
     return row ? this.rowToCompany(row) : undefined;
   }
 
   getCompanyById(id: number): CompanyRecord | undefined {
-    const row = this.db.prepare('SELECT * FROM companies WHERE id = ?').get(id) as Record<string, unknown> | undefined;
+    const row = this.db.prepare('SELECT * FROM companies WHERE id = ?').get(id) as
+      Record<string, unknown> | undefined;
     return row ? this.rowToCompany(row) : undefined;
   }
 
   getAllCompanies(): CompanyRecord[] {
-    const rows = this.db.prepare('SELECT * FROM companies ORDER BY name ASC').all() as Record<string, unknown>[];
+    const rows = this.db.prepare('SELECT * FROM companies ORDER BY name ASC').all() as Record<
+      string,
+      unknown
+    >[];
     return rows.map((r) => this.rowToCompany(r));
   }
 
   updateCompanyResearchBrief(companyId: number, brief: string): void {
     this.db
-      .prepare(`UPDATE companies SET research_brief = ?, last_researched_at = datetime('now') WHERE id = ?`)
+      .prepare(
+        `UPDATE companies SET research_brief = ?, last_researched_at = datetime('now') WHERE id = ?`
+      )
       .run(brief, companyId);
   }
 
   getCompaniesWithoutContacts(): CompanyRecord[] {
-    const rows = this.db.prepare(`
+    const rows = this.db
+      .prepare(
+        `
       SELECT c.* FROM companies c
       LEFT JOIN contacts ct ON c.id = ct.company_id
       WHERE ct.id IS NULL
       ORDER BY c.name ASC
-    `).all() as Record<string, unknown>[];
+    `
+      )
+      .all() as Record<string, unknown>[];
     return rows.map((r) => this.rowToCompany(r));
   }
 
@@ -356,7 +436,8 @@ export class StorageService {
 
   addContact(contact: Omit<ContactRecord, 'id'>): number {
     const result = this.db
-      .prepare(`
+      .prepare(
+        `
         INSERT INTO contacts (
           company_id, full_name, title, contact_type, linkedin_url,
           email, email_status, timezone, source, notes
@@ -364,7 +445,8 @@ export class StorageService {
           @companyId, @fullName, @title, @contactType, @linkedinUrl,
           @email, @emailStatus, @timezone, @source, @notes
         )
-      `)
+      `
+      )
       .run({
         companyId: contact.companyId,
         fullName: contact.fullName,
@@ -382,15 +464,23 @@ export class StorageService {
   }
 
   getContactsForCompany(companyId: number): ContactRecord[] {
-    const rows = this.db.prepare('SELECT * FROM contacts WHERE company_id = ? ORDER BY id ASC').all(companyId) as Record<string, unknown>[];
+    const rows = this.db
+      .prepare('SELECT * FROM contacts WHERE company_id = ? ORDER BY id ASC')
+      .all(companyId) as Record<string, unknown>[];
     return rows.map((r) => this.rowToContact(r));
   }
 
   getAllContacts(filters?: { companyId?: number; emailStatus?: string }): ContactRecord[] {
     let query = 'SELECT * FROM contacts WHERE 1=1';
     const params: unknown[] = [];
-    if (filters?.companyId) { query += ' AND company_id = ?'; params.push(filters.companyId); }
-    if (filters?.emailStatus) { query += ' AND email_status = ?'; params.push(filters.emailStatus); }
+    if (filters?.companyId) {
+      query += ' AND company_id = ?';
+      params.push(filters.companyId);
+    }
+    if (filters?.emailStatus) {
+      query += ' AND email_status = ?';
+      params.push(filters.emailStatus);
+    }
     query += ' ORDER BY created_at DESC';
 
     const rows = this.db.prepare(query).all(...params) as Record<string, unknown>[];
@@ -398,12 +488,15 @@ export class StorageService {
   }
 
   getContactById(id: number): ContactRecord | undefined {
-    const row = this.db.prepare('SELECT * FROM contacts WHERE id = ?').get(id) as Record<string, unknown> | undefined;
+    const row = this.db.prepare('SELECT * FROM contacts WHERE id = ?').get(id) as
+      Record<string, unknown> | undefined;
     return row ? this.rowToContact(row) : undefined;
   }
 
   updateContactEmail(id: number, email: string, status: string): void {
-    this.db.prepare('UPDATE contacts SET email = ?, email_status = ? WHERE id = ?').run(email, status, id);
+    this.db
+      .prepare('UPDATE contacts SET email = ?, email_status = ? WHERE id = ?')
+      .run(email, status, id);
   }
 
   updateContactEmailStatus(id: number, status: string): void {
@@ -418,8 +511,16 @@ export class StorageService {
 
   addSignal(signal: Omit<SignalRecord, 'id'>): number {
     const result = this.db
-      .prepare(`INSERT INTO signals (company_id, signal_type, detail, url, source) VALUES (?, ?, ?, ?, ?)`)
-      .run(signal.companyId, signal.signalType, signal.detail, signal.url || null, signal.source || 'manual');
+      .prepare(
+        `INSERT INTO signals (company_id, signal_type, detail, url, source) VALUES (?, ?, ?, ?, ?)`
+      )
+      .run(
+        signal.companyId,
+        signal.signalType,
+        signal.detail,
+        signal.url || null,
+        signal.source || 'manual'
+      );
     return Number(result.lastInsertRowid);
   }
 
@@ -476,17 +577,23 @@ export class StorageService {
 
   addToSuppressionList(email: string, reason: string): void {
     this.db
-      .prepare("INSERT OR REPLACE INTO suppression_list (email, reason, added_at) VALUES (?, ?, datetime('now'))")
+      .prepare(
+        "INSERT OR REPLACE INTO suppression_list (email, reason, added_at) VALUES (?, ?, datetime('now'))"
+      )
       .run(email.toLowerCase().trim(), reason);
   }
 
   isSuppressed(email: string): boolean {
-    const row = this.db.prepare('SELECT email FROM suppression_list WHERE email = ?').get(email.toLowerCase().trim());
+    const row = this.db
+      .prepare('SELECT email FROM suppression_list WHERE email = ?')
+      .get(email.toLowerCase().trim());
     return Boolean(row);
   }
 
   getSuppressionList(): SuppressionRecord[] {
-    const rows = this.db.prepare('SELECT * FROM suppression_list ORDER BY added_at DESC').all() as Record<string, unknown>[];
+    const rows = this.db
+      .prepare('SELECT * FROM suppression_list ORDER BY added_at DESC')
+      .all() as Record<string, unknown>[];
     return rows.map((r) => ({
       email: r['email'] as string,
       reason: r['reason'] as string,
@@ -497,18 +604,24 @@ export class StorageService {
   // ─── API Usage (for Hunter.io and other rate-capped APIs) ──
 
   getApiUsage(service: string, metricMonth: string): number {
-    const row = this.db.prepare('SELECT call_count FROM api_usage WHERE service = ? AND metric_month = ?').get(service, metricMonth) as { call_count: number } | undefined;
+    const row = this.db
+      .prepare('SELECT call_count FROM api_usage WHERE service = ? AND metric_month = ?')
+      .get(service, metricMonth) as { call_count: number } | undefined;
     return row ? row.call_count : 0;
   }
 
   incrementApiUsage(service: string, metricMonth: string): number {
-    this.db.prepare(`
+    this.db
+      .prepare(
+        `
       INSERT INTO api_usage (service, metric_month, call_count, last_called_at)
       VALUES (?, ?, 1, datetime('now'))
       ON CONFLICT(service, metric_month) DO UPDATE SET
         call_count = call_count + 1,
         last_called_at = datetime('now')
-    `).run(service, metricMonth);
+    `
+      )
+      .run(service, metricMonth);
 
     return this.getApiUsage(service, metricMonth);
   }
@@ -522,7 +635,12 @@ export class StorageService {
     return Number(result.lastInsertRowid);
   }
 
-  completeScanRun(id: number, jobsScraped: number, jobsFiltered: number, companies: string[]): void {
+  completeScanRun(
+    id: number,
+    jobsScraped: number,
+    jobsFiltered: number,
+    companies: string[]
+  ): void {
     this.db
       .prepare(
         `UPDATE scan_runs SET completed_at = datetime('now'), jobs_scraped = ?, jobs_filtered = ?, companies = ?, status = 'done' WHERE id = ?`
@@ -532,7 +650,9 @@ export class StorageService {
 
   failScanRun(id: number, error: string): void {
     this.db
-      .prepare(`UPDATE scan_runs SET completed_at = datetime('now'), status = 'failed', error = ? WHERE id = ?`)
+      .prepare(
+        `UPDATE scan_runs SET completed_at = datetime('now'), status = 'failed', error = ? WHERE id = ?`
+      )
       .run(error, id);
   }
 
@@ -540,7 +660,8 @@ export class StorageService {
 
   addOutreach(record: Omit<OutreachRecord, 'id'>): number {
     const result = this.db
-      .prepare(`
+      .prepare(
+        `
         INSERT INTO outreach (
           contact_id, job_id, type, variant, subject, body,
           status, sent_at, follow_up_due_at, reply_at, outcome, source, error
@@ -548,7 +669,8 @@ export class StorageService {
           @contactId, @jobId, @type, @variant, @subject, @body,
           @status, @sentAt, @followUpDueAt, @replyAt, @outcome, @source, @error
         )
-      `)
+      `
+      )
       .run({
         contactId: record.contactId,
         jobId: record.jobId || null,
@@ -569,7 +691,8 @@ export class StorageService {
   }
 
   getOutreachById(id: number): OutreachRecord | undefined {
-    const row = this.db.prepare('SELECT * FROM outreach WHERE id = ?').get(id) as Record<string, unknown> | undefined;
+    const row = this.db.prepare('SELECT * FROM outreach WHERE id = ?').get(id) as
+      Record<string, unknown> | undefined;
     return row ? this.rowToOutreach(row) : undefined;
   }
 
@@ -589,20 +712,28 @@ export class StorageService {
     return rows.map((r) => this.rowToOutreach(r));
   }
 
-  updateOutreachStatus(id: number, status: OutreachStatus, details?: { sentAt?: string; error?: string }): void {
+  updateOutreachStatus(
+    id: number,
+    status: OutreachStatus,
+    details?: { sentAt?: string; error?: string }
+  ): void {
     this.db
-      .prepare(`
+      .prepare(
+        `
         UPDATE outreach SET
           status = ?,
           sent_at = COALESCE(?, sent_at),
           error = COALESCE(?, error)
         WHERE id = ?
-      `)
+      `
+      )
       .run(status, details?.sentAt || null, details?.error || null, id);
   }
 
   updateOutreachContent(id: number, subject: string, body: string): void {
-    this.db.prepare("UPDATE outreach SET subject = ?, body = ?, status = 'draft' WHERE id = ?").run(subject, body, id);
+    this.db
+      .prepare("UPDATE outreach SET subject = ?, body = ?, status = 'draft' WHERE id = ?")
+      .run(subject, body, id);
   }
 
   recordOutreachReply(id: number, outcome: OutreachOutcome = 'positive', replyAt?: string): void {
@@ -615,23 +746,52 @@ export class StorageService {
   getDailySentCount(dateStr?: string): number {
     const day = dateStr || new Date().toISOString().slice(0, 10);
     const row = this.db
-      .prepare("SELECT COUNT(*) as c FROM outreach WHERE status = 'sent' AND date(sent_at) = date(?)")
+      .prepare(
+        "SELECT COUNT(*) as c FROM outreach WHERE status = 'sent' AND date(sent_at) = date(?)"
+      )
       .get(day) as { c: number };
     return row ? row.c : 0;
   }
 
   getRecentBounceStats(): { totalSent: number; bounced: number; bounceRate: number } {
-    const sentCount = (this.db.prepare("SELECT COUNT(*) as c FROM outreach WHERE status IN ('sent', 'bounced', 'replied')").get() as { c: number }).c;
-    const bounceCount = (this.db.prepare("SELECT COUNT(*) as c FROM outreach WHERE status = 'bounced'").get() as { c: number }).c;
+    const sentCount = (
+      this.db
+        .prepare(
+          "SELECT COUNT(*) as c FROM outreach WHERE status IN ('sent', 'bounced', 'replied')"
+        )
+        .get() as { c: number }
+    ).c;
+    const bounceCount = (
+      this.db.prepare("SELECT COUNT(*) as c FROM outreach WHERE status = 'bounced'").get() as {
+        c: number;
+      }
+    ).c;
     const rate = sentCount > 0 ? bounceCount / sentCount : 0;
     return { totalSent: sentCount, bounced: bounceCount, bounceRate: rate };
   }
 
-  purgeDemoData(): { deletedContacts: number; deletedSignals: number; deletedApplications: number; deletedOutreach: number } {
-    const delContacts = this.db.prepare("DELETE FROM contacts WHERE source IN ('demo', 'sample') OR email IN ('priya.sharma@hackerrank.com', 'arjun.m@hackerrank.com', 'rohan.verma@cred.club', 'ananya.sen@groww.in', 'amit.patel@razorpay.com', 'emily.watson@postman.com')").run().changes;
-    const delSignals = this.db.prepare("DELETE FROM signals WHERE source IN ('demo', 'test') OR detail LIKE '%Series C%'").run().changes;
-    const delApps = this.db.prepare("DELETE FROM applications WHERE id = 1 OR notes LIKE '%demo%' OR notes LIKE '%portal%'").run().changes;
-    const delOutreach = this.db.prepare("DELETE FROM outreach WHERE source IN ('demo', 'sample')").run().changes;
+  purgeDemoData(): {
+    deletedContacts: number;
+    deletedSignals: number;
+    deletedApplications: number;
+    deletedOutreach: number;
+  } {
+    const delContacts = this.db
+      .prepare(
+        "DELETE FROM contacts WHERE source IN ('demo', 'sample') OR email IN ('priya.sharma@hackerrank.com', 'arjun.m@hackerrank.com', 'rohan.verma@cred.club', 'ananya.sen@groww.in', 'amit.patel@razorpay.com', 'emily.watson@postman.com')"
+      )
+      .run().changes;
+    const delSignals = this.db
+      .prepare("DELETE FROM signals WHERE source IN ('demo', 'test') OR detail LIKE '%Series C%'")
+      .run().changes;
+    const delApps = this.db
+      .prepare(
+        "DELETE FROM applications WHERE id = 1 OR notes LIKE '%demo%' OR notes LIKE '%portal%'"
+      )
+      .run().changes;
+    const delOutreach = this.db
+      .prepare("DELETE FROM outreach WHERE source IN ('demo', 'sample')")
+      .run().changes;
     return {
       deletedContacts: delContacts,
       deletedSignals: delSignals,
@@ -648,7 +808,11 @@ export class StorageService {
       title: row['title'] as string,
       company: row['company'] as string,
       location: row['location'] as string,
-      isRemote: Boolean(row['is_remote'] ?? (/remote/i.test(String(row['location'] || '')) || /remote/i.test(String(row['title'] || '')))),
+      isRemote: Boolean(
+        row['is_remote'] ??
+        (/remote/i.test(String(row['location'] || '')) ||
+          /remote/i.test(String(row['title'] || '')))
+      ),
       url: row['url'] as string,
       description: row['description'] as string,
       salary: row['salary'] as string | undefined,
@@ -670,7 +834,10 @@ export class StorageService {
       appliedAt: row['applied_at'] as string | undefined,
       notes: row['notes'] as string | undefined,
       externalId: row['external_id'] as string | undefined,
-      nearMiss: Boolean(row['near_miss'] ?? (row['score'] !== undefined && Number(row['score']) >= 40 && Number(row['score']) < 60)),
+      nearMiss: Boolean(
+        row['near_miss'] ??
+        (row['score'] !== undefined && Number(row['score']) >= 40 && Number(row['score']) < 60)
+      ),
       consecutiveMissedScans: Number(row['consecutive_missed_scans'] ?? 0),
     };
   }

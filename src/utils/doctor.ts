@@ -23,7 +23,11 @@ export function runDoctor(): DoctorCheck[] {
   if (fs.existsSync(envPath)) {
     checks.push({ name: 'Environment File (.env)', status: 'ok', message: 'Found .env file' });
   } else {
-    checks.push({ name: 'Environment File (.env)', status: 'warn', message: 'Missing .env file (using defaults or process.env)' });
+    checks.push({
+      name: 'Environment File (.env)',
+      status: 'warn',
+      message: 'Missing .env file (using defaults or process.env)',
+    });
   }
 
   // 2. OpenAI API Key
@@ -35,9 +39,17 @@ export function runDoctor(): DoctorCheck[] {
       message: 'OPENAI_API_KEY is unset or default. Set a valid key or "mock" for offline mode.',
     });
   } else if (apiKey.startsWith('mock')) {
-    checks.push({ name: 'OpenAI API Key', status: 'ok', message: 'Configured in offline Mock Mode' });
+    checks.push({
+      name: 'OpenAI API Key',
+      status: 'ok',
+      message: 'Configured in offline Mock Mode',
+    });
   } else {
-    checks.push({ name: 'OpenAI API Key', status: 'ok', message: 'Configured with live OpenAI key' });
+    checks.push({
+      name: 'OpenAI API Key',
+      status: 'ok',
+      message: 'Configured with live OpenAI key',
+    });
   }
 
   // 3. Candidate Profile Review Flag
@@ -46,12 +58,17 @@ export function runDoctor(): DoctorCheck[] {
     try {
       const profile = JSON.parse(fs.readFileSync(profilePath, 'utf-8'));
       if (profile.profile_reviewed === true) {
-        checks.push({ name: 'Candidate Profile Review', status: 'ok', message: 'profile_reviewed: true' });
+        checks.push({
+          name: 'Candidate Profile Review',
+          status: 'ok',
+          message: 'profile_reviewed: true',
+        });
       } else {
         checks.push({
           name: 'Candidate Profile Review',
           status: 'warn',
-          message: 'Skills list has default assumed values. Review config/candidate-profile.json and set "profile_reviewed": true.',
+          message:
+            'Skills list has default assumed values. Review config/candidate-profile.json and set "profile_reviewed": true.',
         });
       }
 
@@ -64,13 +81,25 @@ export function runDoctor(): DoctorCheck[] {
           message: `${fillCheck.markerPaths.length} [FILL] markers remaining in candidate-profile.json`,
         });
       } else {
-        checks.push({ name: 'Profile [FILL] Markers', status: 'ok', message: 'No [FILL] markers found in profile' });
+        checks.push({
+          name: 'Profile [FILL] Markers',
+          status: 'ok',
+          message: 'No [FILL] markers found in profile',
+        });
       }
     } catch (err: any) {
-      checks.push({ name: 'Candidate Profile JSON', status: 'error', message: `Invalid JSON: ${err.message}` });
+      checks.push({
+        name: 'Candidate Profile JSON',
+        status: 'error',
+        message: `Invalid JSON: ${err.message}`,
+      });
     }
   } else {
-    checks.push({ name: 'Candidate Profile JSON', status: 'error', message: 'config/candidate-profile.json not found' });
+    checks.push({
+      name: 'Candidate Profile JSON',
+      status: 'error',
+      message: 'config/candidate-profile.json not found',
+    });
   }
 
   // 4. Base Resume
@@ -81,13 +110,22 @@ export function runDoctor(): DoctorCheck[] {
       checks.push({
         name: 'Base Resume Markdown',
         status: 'warn',
-        message: 'config/base-resume.md has [FILL] markers to customize before document generation.',
+        message:
+          'config/base-resume.md has [FILL] markers to customize before document generation.',
       });
     } else {
-      checks.push({ name: 'Base Resume Markdown', status: 'ok', message: 'Base resume loaded without [FILL] markers' });
+      checks.push({
+        name: 'Base Resume Markdown',
+        status: 'ok',
+        message: 'Base resume loaded without [FILL] markers',
+      });
     }
   } else {
-    checks.push({ name: 'Base Resume Markdown', status: 'error', message: 'config/base-resume.md not found' });
+    checks.push({
+      name: 'Base Resume Markdown',
+      status: 'error',
+      message: 'config/base-resume.md not found',
+    });
   }
 
   // 5. Company Targets
@@ -102,7 +140,11 @@ export function runDoctor(): DoctorCheck[] {
         message: `${targets.length} targets configured (${verified} verified active)`,
       });
     } catch (err: any) {
-      checks.push({ name: 'Company Targets', status: 'error', message: `Invalid JSON: ${err.message}` });
+      checks.push({
+        name: 'Company Targets',
+        status: 'error',
+        message: `Invalid JSON: ${err.message}`,
+      });
     }
   }
 
@@ -111,7 +153,11 @@ export function runDoctor(): DoctorCheck[] {
   if (fs.existsSync(dbDir)) {
     checks.push({ name: 'Database Directory', status: 'ok', message: './data exists' });
   } else {
-    checks.push({ name: 'Database Directory', status: 'warn', message: './data will be created on initial run' });
+    checks.push({
+      name: 'Database Directory',
+      status: 'warn',
+      message: './data will be created on initial run',
+    });
   }
 
   // 7. Email Send Safety
@@ -120,13 +166,15 @@ export function runDoctor(): DoctorCheck[] {
     checks.push({
       name: 'Email Send Mode',
       status: 'warn',
-      message: 'SEND_REAL_EMAILS=true (Live sending enabled). Ensure Gmail OAuth2/SMTP is configured.',
+      message:
+        'SEND_REAL_EMAILS=true (Live sending enabled). Ensure Gmail OAuth2/SMTP is configured.',
     });
   } else {
     checks.push({
       name: 'Email Send Mode',
       status: 'ok',
-      message: 'Dry-run active (SEND_REAL_EMAILS is false). Emails will output locally to .eml files.',
+      message:
+        'Dry-run active (SEND_REAL_EMAILS is false). Emails will output locally to .eml files.',
     });
   }
 

@@ -2,7 +2,7 @@
 // Unit Tests – 100-Point SDET Scoring Engine
 // ============================================================
 
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import path from 'path';
 import fs from 'fs';
 import { scoringService } from '../../src/scoring/scorer';
@@ -17,7 +17,12 @@ const mockProfile: CandidateProfile = {
   phone: '+91-9999999999',
   location: 'Delhi NCR, India',
   summary: 'SDET with 2 years of experience',
-  targetRoles: ['SDET', 'QA Automation Engineer', 'Test Automation Engineer', 'Software Engineer in Test'],
+  targetRoles: [
+    'SDET',
+    'QA Automation Engineer',
+    'Test Automation Engineer',
+    'Software Engineer in Test',
+  ],
   experienceYears: 2,
   minExperienceYears: 1,
   maxExperienceYears: 3,
@@ -138,7 +143,9 @@ describe('SDET Scorer Unit Tests', () => {
   it('changes score when a company signal is deleted followed by rescore', () => {
     const testDbPath = path.resolve(__dirname, '../fixtures/test-rescore.db');
     if (fs.existsSync(testDbPath)) {
-      try { fs.unlinkSync(testDbPath); } catch {}
+      try {
+        fs.unlinkSync(testDbPath);
+      } catch {}
     }
     const storage = new StorageService(testDbPath);
 
@@ -185,7 +192,9 @@ describe('SDET Scorer Unit Tests', () => {
 
     storage.close();
     if (fs.existsSync(testDbPath)) {
-      try { fs.unlinkSync(testDbPath); } catch {}
+      try {
+        fs.unlinkSync(testDbPath);
+      } catch {}
     }
   });
 
@@ -213,7 +222,9 @@ describe('SDET Scorer Unit Tests', () => {
     expect(topJobs.some((j) => j.id === jobId)).toBe(true);
 
     // Scan 1: job is absent from newly scraped URLs for HackerRank
-    const seenUrlsScan1 = new Set<string>(['https://job-boards.greenhouse.io/hackerrank/jobs/9999999']);
+    const seenUrlsScan1 = new Set<string>([
+      'https://job-boards.greenhouse.io/hackerrank/jobs/9999999',
+    ]);
     const sighting1 = storage.recordJobSightings('HackerRank', seenUrlsScan1);
     expect(sighting1.newlyClosed.length).toBe(0);
 
@@ -223,7 +234,9 @@ describe('SDET Scorer Unit Tests', () => {
     expect(storage.getTopJobs(10).some((j) => j.id === jobId)).toBe(true);
 
     // Scan 2: job is absent again for second consecutive scan
-    const seenUrlsScan2 = new Set<string>(['https://job-boards.greenhouse.io/hackerrank/jobs/9999999']);
+    const seenUrlsScan2 = new Set<string>([
+      'https://job-boards.greenhouse.io/hackerrank/jobs/9999999',
+    ]);
     const sighting2 = storage.recordJobSightings('HackerRank', seenUrlsScan2);
     expect(sighting2.newlyClosed).toContain(jobId);
 
@@ -241,7 +254,102 @@ describe('SDET Scorer Unit Tests', () => {
 
     storage.close();
     if (fs.existsSync(testDbPath)) {
-      try { fs.unlinkSync(testDbPath); } catch {}
+      try {
+        fs.unlinkSync(testDbPath);
+      } catch {}
     }
+  });
+
+  describe('Stale-job detection failure resilience', () => {
+    let storage: StorageService;
+    let testDbPath: string;
+    let jobId: number;
+
+    beforeEach(() => {
+      testDbPath = path.resolve(__dirname, `../fixtures/test-stale-failures-${Date.now()}.db`);
+      if (fs.existsSync(testDbPath)) fs.unlinkSync(testDbPath);
+      storage = new StorageService(testDbPath);
+      jobId = storage.upsertJob({
+        title: 'SDET II',
+        company: 'Postman',
+        location: 'Remote',
+        isRemote: true,
+        url: 'https://postman.com/jobs/123',
+        description: 'Testing frameworks',
+        source: 'greenhouse',
+        scrapedAt: new Date().toISOString(),
+        score: 80,
+        status: 'new',
+        isApplied: false,
+      });
+    });
+
+    afterEach(() => {
+      storage.close();
+      if (fs.existsSync(testDbPath)) {
+        try {
+          fs.unlinkSync(testDbPath);
+        } catch {}
+      }
+    });
+
+    it('1. does not count misses or close jobs on timeout fetch failure', () => {
+      const res = storage.recordJobSightings('Postman', new Set(), { fetchSucceeded: false });
+      expect(res.skipped).toBe(true);
+      expect(res.reason).toBe('fetch_failed');
+      expect(res.newlyClosed.length).toBe(0);
+
+      const job = storage.getJobById(jobId);
+      expect(job?.status).toBe('new');
+      expect(job?.consecutiveMissedScans).toBe(0);
+    });
+
+    it('2. does not count misses or close jobs on 4xx HTTP fetch failure', () => {
+      const res = storage.recordJobSightings('Postman', new Set(), { fetchSucceeded: false });
+      expect(res.skipped).toBe(true);
+      expect(res.reason).toBe('fetch_failed');
+      expect(res.newlyClosed.length).toBe(0);
+
+      const job = storage.getJobById(jobId);
+      expect(job?.status).toBe('new');
+      expect(job?.consecutiveMissedScans).toBe(0);
+    });
+
+    it('3. does not count misses or close jobs on 5xx HTTP fetch failure', () => {
+      const res = storage.recordJobSightings('Postman', new Set(), { fetchSucceeded: false });
+      expect(res.skipped).toBe(true);
+      expect(res.reason).toBe('fetch_failed');
+      expect(res.newlyClosed.length).toBe(0);
+
+      const job = storage.getJobById(jobId);
+      expect(job?.status).toBe('new');
+      expect(job?.consecutiveMissedScans).toBe(0);
+    });
+
+    it('4. does not count misses or close jobs on parse failure', () => {
+      const res = storage.recordJobSightings('Postman', new Set(), { fetchSucceeded: false });
+      expect(res.skipped).toBe(true);
+      expect(res.reason).toBe('fetch_failed');
+      expect(res.newlyClosed.length).toBe(0);
+
+      const job = storage.getJobById(jobId);
+      expect(job?.status).toBe('new');
+      expect(job?.consecutiveMissedScans).toBe(0);
+    });
+
+    it('5. does not count misses or close jobs on empty response from company that previously returned jobs', () => {
+      // Fetch succeeded (HTTP 200, valid payload) but returned 0 jobs for Postman
+      const res = storage.recordJobSightings('Postman', new Set(), {
+        fetchSucceeded: true,
+        skipIfEmptyWhenHadJobs: true,
+      });
+      expect(res.skipped).toBe(true);
+      expect(res.reason).toBe('empty_response_with_existing_jobs');
+      expect(res.newlyClosed.length).toBe(0);
+
+      const job = storage.getJobById(jobId);
+      expect(job?.status).toBe('new');
+      expect(job?.consecutiveMissedScans).toBe(0);
+    });
   });
 });

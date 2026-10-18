@@ -95,17 +95,32 @@ export class ContactService {
   getTargetingRule(company: CompanyRecord): TargetingRule {
     if (company.sizeBucket === 'startup') {
       return {
-        targetTitles: ['Founder', 'Co-Founder', 'CTO', 'Head of Engineering', 'QA Lead', 'Engineering Manager'],
+        targetTitles: [
+          'Founder',
+          'Co-Founder',
+          'CTO',
+          'Head of Engineering',
+          'QA Lead',
+          'Engineering Manager',
+        ],
         priorityTypes: ['founder_cto', 'sdet_lead', 'eng_manager', 'qa_manager'],
-        rationale: 'In early-stage startups (<50 people), founders and CTOs hire engineers directly and respond fastest.',
+        rationale:
+          'In early-stage startups (<50 people), founders and CTOs hire engineers directly and respond fastest.',
       };
     }
 
     if (company.sizeBucket === 'large') {
       return {
-        targetTitles: ['Technical Recruiter', 'Talent Acquisition Partner', 'QA Engineering Manager', 'SDET Manager', 'Director of QA'],
+        targetTitles: [
+          'Technical Recruiter',
+          'Talent Acquisition Partner',
+          'QA Engineering Manager',
+          'SDET Manager',
+          'Director of QA',
+        ],
         priorityTypes: ['recruiter', 'qa_manager', 'sdet_lead', 'eng_manager'],
-        rationale: 'In large enterprises, recruiters filter applications and QA engineering managers hold hiring headcount.',
+        rationale:
+          'In large enterprises, recruiters filter applications and QA engineering managers hold hiring headcount.',
       };
     }
 
@@ -113,7 +128,8 @@ export class ContactService {
     return {
       targetTitles: ['Engineering Manager', 'QA Manager', 'Lead SDET', 'Technical Recruiter'],
       priorityTypes: ['sdet_lead', 'qa_manager', 'eng_manager', 'recruiter'],
-      rationale: 'In growth-stage tech firms, engineering managers and QA leads make immediate interview decisions.',
+      rationale:
+        'In growth-stage tech firms, engineering managers and QA leads make immediate interview decisions.',
     };
   }
 
@@ -162,16 +178,25 @@ export class ContactService {
     }
 
     // Header parser: company, name, title, linkedin_url, email, timezone
-    const header = lines[0].toLowerCase().split(',').map((h) => h.trim().replace(/^["']|["']$/g, ''));
+    const header = lines[0]
+      .toLowerCase()
+      .split(',')
+      .map((h) => h.trim().replace(/^["']|["']$/g, ''));
     const compIdx = header.indexOf('company');
-    const nameIdx = header.indexOf('name') >= 0 ? header.indexOf('name') : header.indexOf('full_name');
+    const nameIdx =
+      header.indexOf('name') >= 0 ? header.indexOf('name') : header.indexOf('full_name');
     const titleIdx = header.indexOf('title');
-    const linkedinIdx = header.indexOf('linkedin_url') >= 0 ? header.indexOf('linkedin_url') : header.indexOf('linkedin');
+    const linkedinIdx =
+      header.indexOf('linkedin_url') >= 0
+        ? header.indexOf('linkedin_url')
+        : header.indexOf('linkedin');
     const emailIdx = header.indexOf('email');
     const tzIdx = header.indexOf('timezone');
 
     if (compIdx === -1 || nameIdx === -1) {
-      throw new Error(`CSV must contain at least 'company' and 'name' columns. Found: ${header.join(', ')}`);
+      throw new Error(
+        `CSV must contain at least 'company' and 'name' columns. Found: ${header.join(', ')}`
+      );
     }
 
     let imported = 0;
@@ -183,14 +208,16 @@ export class ContactService {
       if (!line) continue;
 
       // Handle quoted commas
-      const cols = line.split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/).map((c) => c.trim().replace(/^["']|["']$/g, ''));
+      const cols = line
+        .split(/,(?=(?:(?:[^"]*"){2})*[^"]*$)/)
+        .map((c) => c.trim().replace(/^["']|["']$/g, ''));
 
       const companyName = cols[compIdx];
       const fullName = cols[nameIdx];
       const title = (titleIdx >= 0 ? cols[titleIdx] : '') || 'Software Professional';
       const linkedinUrl = linkedinIdx >= 0 ? cols[linkedinIdx] : undefined;
       const email = emailIdx >= 0 ? cols[emailIdx] : undefined;
-      const timezone = (tzIdx >= 0 && cols[tzIdx]) ? cols[tzIdx] : 'Asia/Kolkata';
+      const timezone = tzIdx >= 0 && cols[tzIdx] ? cols[tzIdx] : 'Asia/Kolkata';
 
       if (!companyName || !fullName) {
         failed++;
@@ -248,14 +275,25 @@ export class ContactService {
   inferContactType(title: string): ContactType {
     const t = title.toLowerCase();
     if (/\b(founder|co-founder|ceo|cto)\b/i.test(t)) return 'founder_cto';
-    if (/\b(lead sdet|sdet lead|lead qa|qa lead|lead test|test lead|principal sdet|staff sdet)\b/i.test(t)) {
+    if (
+      /\b(lead sdet|sdet lead|lead qa|qa lead|lead test|test lead|principal sdet|staff sdet)\b/i.test(
+        t
+      )
+    ) {
       return 'sdet_lead';
     }
-    if (/\b(qa manager|test manager|qa engineering manager|head of qa|director of qa|quality manager)\b/i.test(t)) {
+    if (
+      /\b(qa manager|test manager|qa engineering manager|head of qa|director of qa|quality manager)\b/i.test(
+        t
+      )
+    ) {
       return 'qa_manager';
     }
     if (/\b(recruiter|talent|sourcer|staffing|ta partner)\b/i.test(t)) return 'recruiter';
-    if (/\b(engineering manager|eng manager|em|director of engineering|vp of engineering)\b/i.test(t)) return 'eng_manager';
+    if (
+      /\b(engineering manager|eng manager|em|director of engineering|vp of engineering)\b/i.test(t)
+    )
+      return 'eng_manager';
     return 'generic_careers';
   }
 
