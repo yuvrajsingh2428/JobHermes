@@ -494,7 +494,8 @@ describe('Phase 4 Dashboard Server & REST API Tests', () => {
   });
 
   it('21. Clock Override Security: Ignores fakeNow in HTTP requests and prevents clock manipulation via API', async () => {
-    // 1. Approve outreach draft #1
+    // 1. Approve outreach draft #1 and ensure contact email is verified
+    storage.updateContactEmailStatus(1, 'verified');
     storage.updateOutreachStatus(1, 'approved');
 
     // 2. Set server test clock to an out-of-hours timestamp (Sunday 23:00 IST)
