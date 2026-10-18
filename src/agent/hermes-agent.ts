@@ -4,7 +4,7 @@
 
 import { v4 as uuidv4 } from 'uuid';
 import { AgentTask, CandidateProfile, CompanyTarget, JobPosting, HermesConfig } from '../types';
-import { fetchAllTargets } from '../sources';
+import { fetchAllTargetsDetailed, fetchAllTargets } from '../sources';
 import { scoringService, ScoringService, ScoringContext } from '../scoring/scorer';
 import { AIService } from '../ai/openai-service';
 import { StorageService } from '../storage/database';
@@ -34,11 +34,7 @@ export class HermesAgent {
 
     this.storage = new StorageService(config.databasePath);
 
-    this.documents = new DocumentService(
-      this.ai,
-      this.storage,
-      config.documentsDir
-    );
+    this.documents = new DocumentService(this.ai, this.storage, config.documentsDir);
 
     logger.section('JobHermes SDET Copilot Initialized');
     logger.info('Config loaded', {
@@ -97,7 +93,10 @@ export class HermesAgent {
 
       // 1. Fetch from structured ATS adapters
       logger.info(`Fetching jobs across ${enabledTargets.length} company sources...`);
-      const rawJobs = await fetchAllTargets(enabledTargets, this.config.scrapeConcurrency);
+      const { jobs: rawJobs, targetResults } = await fetchAllTargetsDetailed(
+        enabledTargets,
+        this.config.scrapeConcurrency
+      );
       logger.info(`Total unique raw jobs collected: ${rawJobs.length}`);
 
       // 2. Build company contexts with signal and QA opening awareness
@@ -144,14 +143,18 @@ export class HermesAgent {
         (j) => (j.score ?? 0) >= 40 && (j.score ?? 0) < this.config.minScoreThreshold
       );
 
-      logger.info(`After scoring filter (>= ${this.config.minScoreThreshold}): ${qualified.length} matching jobs`);
+      logger.info(
+        `After scoring filter (>= ${this.config.minScoreThreshold}): ${qualified.length} matching jobs`
+      );
       logger.info(`Near misses (40–59): ${nearMisses.length}`);
 
       if (nearMisses.length > 0) {
         logger.section('Near Misses (Score 40–59)');
         nearMisses.forEach((j, i) => {
           logger.info(`  #${i + 1} [Score: ${j.score}] ${j.title} @ ${j.company} (${j.location})`);
-          logger.info(`     Missing: ${j.scoreBreakdown?.missingSkills.slice(0, 3).join(', ') || 'none'}`);
+          logger.info(
+            `     Missing: ${j.scoreBreakdown?.missingSkills.slice(0, 3).join(', ') || 'none'}`
+          );
           logger.info(`     Key Reasons: ${j.reasons?.slice(0, 2).join(' | ')}`);
         });
       }
@@ -170,27 +173,34 @@ export class HermesAgent {
         }
       }
 
-      // Update stale/closed job sightings for all enabled target companies
-      const rawJobUrlsByCompany = new Map<string, Set<string>>();
-      for (const t of enabledTargets) {
-        rawJobUrlsByCompany.set(t.name, new Set());
-      }
-      for (const j of rawJobs) {
-        if (!rawJobUrlsByCompany.has(j.company)) {
-          rawJobUrlsByCompany.set(j.company, new Set());
+      // Update stale/closed job sightings ONLY for companies where fetch succeeded (HTTP 200, valid parsed payload)
+      for (const res of targetResults) {
+        const compName = res.target.name;
+        if (!res.success) {
+          logger.warn(
+            `Stale-job detection skipped for ${compName}: fetch failed (${res.errorType || 'error'}${res.statusCode ? ` HTTP ${res.statusCode}` : ''}).`
+          );
+          continue;
         }
-        rawJobUrlsByCompany.get(j.company)!.add(j.url);
-      }
 
-      for (const [compName, urlSet] of rawJobUrlsByCompany.entries()) {
-        const sightings = this.storage.recordJobSightings(compName, urlSet);
+        const urlSet = new Set(res.jobs.map((j) => j.url));
+        const sightings = this.storage.recordJobSightings(compName, urlSet, {
+          fetchSucceeded: true,
+          skipIfEmptyWhenHadJobs: true,
+        });
+
         if (sightings.newlyClosed.length > 0) {
-          logger.info(`Closed ${sightings.newlyClosed.length} stale jobs for ${compName} absent for 2 consecutive scans.`);
+          logger.info(
+            `Closed ${sightings.newlyClosed.length} stale jobs for ${compName} absent for 2 consecutive scans.`
+          );
         }
       }
 
       // 5. Generate AI summary
-      const topJobs = this.storage.getTopJobs(this.config.topJobsCount, this.config.minScoreThreshold);
+      const topJobs = this.storage.getTopJobs(
+        this.config.topJobsCount,
+        this.config.minScoreThreshold
+      );
       const companiesCovered = enabledTargets.map((t) => t.name);
 
       let aiSummary: string | undefined;
@@ -267,7 +277,10 @@ export class HermesAgent {
   // ─── Getters ───────────────────────────────────────────────
 
   getTopJobs(limit?: number): JobPosting[] {
-    return this.storage.getTopJobs(limit ?? this.config.topJobsCount, this.config.minScoreThreshold);
+    return this.storage.getTopJobs(
+      limit ?? this.config.topJobsCount,
+      this.config.minScoreThreshold
+    );
   }
 
   getAllJobs(): JobPosting[] {
@@ -304,14 +317,24 @@ export class HermesAgent {
     return this.isScanning;
   }
 
-  async scanAllQaTitles(): Promise<Array<{ title: string; company: string; location: string; url: string; source: string; isSdetMatch: boolean }>> {
+  async scanAllQaTitles(): Promise<
+    Array<{
+      title: string;
+      company: string;
+      location: string;
+      url: string;
+      source: string;
+      isSdetMatch: boolean;
+    }>
+  > {
     const targets = this.loadTargets().filter((t) => t.enabled && t.verified);
     const rawJobs = await fetchAllTargets(targets, this.config.scrapeConcurrency);
 
     const qaRegex = /\b(qa|quality|test|sdet|automation|assurance|testing)\b/i;
     const qaJobs = rawJobs.filter((j) => qaRegex.test(j.title));
 
-    const sdetRegex = /\b(sdet|software (?:development )?engineer in test|qa automation|test automation|automation test engineer|set)\b/i;
+    const sdetRegex =
+      /\b(sdet|software (?:development )?engineer in test|qa automation|test automation|automation test engineer|set)\b/i;
 
     return qaJobs.map((j) => ({
       title: j.title,

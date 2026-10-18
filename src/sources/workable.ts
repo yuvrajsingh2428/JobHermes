@@ -3,7 +3,7 @@
 // ============================================================
 
 import { CompanyTarget, RawJob } from '../types';
-import { JobSource } from './types';
+import { JobSource, FetchError } from './types';
 import { httpClient } from './http-client';
 import { logger } from '../utils/logger';
 
@@ -35,13 +35,27 @@ export class WorkableSource implements JobSource {
       const res = await httpClient.get<WorkableResponse>(url);
 
       if (res.status === 404) {
-        logger.warn(`Workable widget not found for slug '${slug}' (${target.name})`);
-        return [];
+        throw new FetchError(
+          `Workable widget not found for slug '${slug}' (${target.name})`,
+          'http_error',
+          404
+        );
+      }
+
+      if (res.status >= 400) {
+        throw new FetchError(
+          `Workable fetch failed with HTTP ${res.status} for ${target.name}`,
+          'http_error',
+          res.status
+        );
       }
 
       if (res.status !== 200 || !res.data || !Array.isArray(res.data.jobs)) {
-        logger.warn(`Workable fetch non-200 or invalid payload for ${target.name}`, { status: res.status });
-        return [];
+        throw new FetchError(
+          `Workable fetch invalid payload for ${target.name}`,
+          'parse_error',
+          res.status
+        );
       }
 
       return res.data.jobs.map((j) => {
@@ -63,7 +77,9 @@ export class WorkableSource implements JobSource {
         };
       });
     } catch (err) {
-      logger.error(`Error fetching Workable jobs for ${target.name} (${slug})`, { error: String(err) });
+      logger.error(`Error fetching Workable jobs for ${target.name} (${slug})`, {
+        error: String(err),
+      });
       return [];
     }
   }

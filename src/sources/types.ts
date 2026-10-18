@@ -4,6 +4,17 @@
 
 import { CompanyTarget, RawJob } from '../types';
 
+export class FetchError extends Error {
+  constructor(
+    message: string,
+    public errorType: 'timeout' | 'http_error' | 'parse_error' | 'network_error',
+    public statusCode?: number
+  ) {
+    super(message);
+    this.name = 'FetchError';
+  }
+}
+
 export interface JobSource {
   name: string;
   fetchJobs(target: CompanyTarget): Promise<RawJob[]>;
@@ -13,7 +24,15 @@ export function cleanCanonicalUrl(url: string): string {
   try {
     const parsed = new URL(url);
     // Strip common tracking query params
-    const trackingParams = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'gh_src', 'lever-source'];
+    const trackingParams = [
+      'utm_source',
+      'utm_medium',
+      'utm_campaign',
+      'utm_term',
+      'utm_content',
+      'gh_src',
+      'lever-source',
+    ];
     trackingParams.forEach((p) => parsed.searchParams.delete(p));
     // Remove trailing slash from pathname if present
     parsed.pathname = parsed.pathname.replace(/\/+$/, '');

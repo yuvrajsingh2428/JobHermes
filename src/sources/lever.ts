@@ -3,7 +3,7 @@
 // ============================================================
 
 import { CompanyTarget, RawJob } from '../types';
-import { JobSource } from './types';
+import { JobSource, FetchError } from './types';
 import { httpClient } from './http-client';
 import { logger } from '../utils/logger';
 
@@ -33,20 +33,36 @@ export class LeverSource implements JobSource {
       const res = await httpClient.get<LeverJob[]>(url);
 
       if (res.status === 404) {
-        logger.warn(`Lever postings not found for slug '${slug}' (${target.name})`);
-        return [];
+        throw new FetchError(
+          `Lever postings not found for slug '${slug}' (${target.name})`,
+          'http_error',
+          404
+        );
+      }
+
+      if (res.status >= 400) {
+        throw new FetchError(
+          `Lever fetch failed with HTTP ${res.status} for ${target.name}`,
+          'http_error',
+          res.status
+        );
       }
 
       if (res.status !== 200 || !Array.isArray(res.data)) {
-        logger.warn(`Lever fetch non-200 or invalid payload for ${target.name}`, { status: res.status });
-        return [];
+        throw new FetchError(
+          `Lever fetch invalid payload for ${target.name}`,
+          'parse_error',
+          res.status
+        );
       }
 
       return res.data.map((j) => {
         const loc = j.categories?.location || '';
         const workplace = (j.categories?.workplaceType || '').toLowerCase();
         const isRemote = workplace === 'remote' || /remote/i.test(loc) || /remote/i.test(j.text);
-        const description = [j.descriptionPlain || '', j.additionalPlain || ''].filter(Boolean).join('\n\n');
+        const description = [j.descriptionPlain || '', j.additionalPlain || '']
+          .filter(Boolean)
+          .join('\n\n');
 
         return {
           title: j.text.trim(),
@@ -61,7 +77,9 @@ export class LeverSource implements JobSource {
         };
       });
     } catch (err) {
-      logger.error(`Error fetching Lever jobs for ${target.name} (${slug})`, { error: String(err) });
+      logger.error(`Error fetching Lever jobs for ${target.name} (${slug})`, {
+        error: String(err),
+      });
       return [];
     }
   }

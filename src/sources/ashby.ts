@@ -3,7 +3,7 @@
 // ============================================================
 
 import { CompanyTarget, RawJob } from '../types';
-import { JobSource } from './types';
+import { JobSource, FetchError } from './types';
 import { httpClient } from './http-client';
 import { logger } from '../utils/logger';
 
@@ -34,13 +34,27 @@ export class AshbySource implements JobSource {
       const res = await httpClient.get<AshbyResponse>(url);
 
       if (res.status === 404) {
-        logger.warn(`Ashby board not found for slug '${slug}' (${target.name})`);
-        return [];
+        throw new FetchError(
+          `Ashby board not found for slug '${slug}' (${target.name})`,
+          'http_error',
+          404
+        );
+      }
+
+      if (res.status >= 400) {
+        throw new FetchError(
+          `Ashby fetch failed with HTTP ${res.status} for ${target.name}`,
+          'http_error',
+          res.status
+        );
       }
 
       if (res.status !== 200 || !res.data || !Array.isArray(res.data.jobs)) {
-        logger.warn(`Ashby fetch non-200 or invalid payload for ${target.name}`, { status: res.status });
-        return [];
+        throw new FetchError(
+          `Ashby fetch invalid payload for ${target.name}`,
+          'parse_error',
+          res.status
+        );
       }
 
       return res.data.jobs.map((j) => {
@@ -61,7 +75,9 @@ export class AshbySource implements JobSource {
         };
       });
     } catch (err) {
-      logger.error(`Error fetching Ashby jobs for ${target.name} (${slug})`, { error: String(err) });
+      logger.error(`Error fetching Ashby jobs for ${target.name} (${slug})`, {
+        error: String(err),
+      });
       return [];
     }
   }
