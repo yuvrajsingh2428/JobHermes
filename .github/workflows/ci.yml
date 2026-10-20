@@ -1,0 +1,73 @@
+name: CI Test Suite & Code Quality
+
+on:
+  push:
+    branches: [main, redesign/copilot]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Node ${{ matrix.node-version }} - Quality & Tests
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+
+    env:
+      OPENAI_API_KEY: mock
+      SEND_REAL_EMAILS: "false"
+      NODE_ENV: test
+      CI: "true"
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js ${{ matrix.node-version }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium & system dependencies
+        run: npx playwright install --with-deps chromium
+
+      - name: Verify Prettier Code Formatting
+        run: npm run format:check
+
+      - name: Run ESLint
+        run: npm run lint
+
+      - name: Run TypeScript Type Check
+        run: npm run typecheck
+
+      - name: Run Unit Tests
+        run: npm run test:unit
+
+      - name: Run Contract Tests (Offline Fixtures)
+        run: npm run test:contract
+
+      - name: Run REST API Integration Tests
+        run: npm run test:api
+
+      - name: Run Playwright E2E Tests on Demo Sandbox
+        run: npm run test:e2e
+
+      - name: Generate Code Coverage Report
+        run: npm run test:coverage
+
+      - name: Upload Coverage Artifacts
+        if: matrix.node-version == '20.x'
+        uses: actions/upload-artifact@v4
+        with:
+          name: code-coverage-report
+          path: coverage/
+          retention-days: 14

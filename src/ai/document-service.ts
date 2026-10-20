@@ -5,28 +5,38 @@
 import path from 'path';
 import { CandidateProfile, ApplicationRecord } from '../types';
 import { AIService } from '../ai/openai-service';
-import { ReportGenerator } from '../reports/report-generator';
 import { StorageService } from '../storage/database';
 import { logger } from '../utils/logger';
 import { ensureDir, writeTextFile, sanitizeFilename, getTimestampString } from '../utils/helpers';
 
 export class DocumentService {
   private ai: AIService;
-  private reporter: ReportGenerator;
   private storage: StorageService;
   private documentsDir: string;
 
-  constructor(
-    ai: AIService,
-    reporter: ReportGenerator,
-    storage: StorageService,
-    documentsDir: string
-  ) {
+  constructor(ai: AIService, storage: StorageService, documentsDir: string) {
     this.ai = ai;
-    this.reporter = reporter;
     this.storage = storage;
     this.documentsDir = documentsDir;
     ensureDir(documentsDir);
+  }
+
+  private wrapDocumentHtml(content: string, title: string): string {
+    return `<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>${title}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    body { font-family: 'Inter', sans-serif; background: #fff; color: #1e293b; margin: 0; padding: 40px; }
+    @media print { body { padding: 0; } }
+  </style>
+</head>
+<body>
+  ${content}
+</body>
+</html>`;
   }
 
   async generateResume(jobId: number, profile: CandidateProfile): Promise<string> {
@@ -36,7 +46,7 @@ export class DocumentService {
     logger.section(`Generating Resume: ${job.title} @ ${job.company}`);
 
     const content = await this.ai.generateResume(job, profile);
-    const wrapped = this.reporter.wrapResumeHtml(content, profile.name, job.title, job.company);
+    const wrapped = this.wrapDocumentHtml(content, `${profile.name} - Resume - ${job.title}`);
 
     const dir = path.join(this.documentsDir, 'resumes');
     ensureDir(dir);
@@ -60,7 +70,7 @@ export class DocumentService {
     logger.section(`Generating Cover Letter: ${job.title} @ ${job.company}`);
 
     const content = await this.ai.generateCoverLetter(job, profile, tone);
-    const wrapped = this.reporter.wrapCoverLetterHtml(content, profile.name, job.title, job.company);
+    const wrapped = this.wrapDocumentHtml(content, `${profile.name} - Cover Letter - ${job.title}`);
 
     const dir = path.join(this.documentsDir, 'cover-letters');
     ensureDir(dir);

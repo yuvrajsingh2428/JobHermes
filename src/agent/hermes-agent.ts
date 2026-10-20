@@ -3,23 +3,19 @@
 // ============================================================
 
 import { v4 as uuidv4 } from 'uuid';
-import { AgentTask, CandidateProfile, CompanyTarget, JobPosting } from '../types';
-import { ScraperService } from '../scraper/scraper';
-import { ScoringService } from '../scoring/scorer';
+import { AgentTask, CandidateProfile, CompanyTarget, JobPosting, HermesConfig } from '../types';
+import { fetchAllTargetsDetailed, fetchAllTargets } from '../sources';
+import { scoringService, ScoringService, ScoringContext } from '../scoring/scorer';
 import { AIService } from '../ai/openai-service';
 import { StorageService } from '../storage/database';
-import { ReportGenerator } from '../reports/report-generator';
 import { DocumentService } from '../ai/document-service';
 import { logger } from '../utils/logger';
-import { readJsonFile, runConcurrent } from '../utils/helpers';
-import { HermesConfig } from '../types';
+import { readJsonFile } from '../utils/helpers';
 
 export class HermesAgent {
-  private scraper: ScraperService;
   private scorer: ScoringService;
   private ai: AIService;
   private storage: StorageService;
-  private reporter: ReportGenerator;
   private documents: DocumentService;
   private config: HermesConfig;
   private tasks: Map<string, AgentTask> = new Map();
@@ -28,14 +24,7 @@ export class HermesAgent {
   constructor(config: HermesConfig) {
     this.config = config;
 
-    this.scraper = new ScraperService({
-      userAgent: config.userAgent,
-      timeout: config.requestTimeoutMs,
-      delayMs: config.requestDelayMs,
-      retries: config.maxRetries,
-    });
-
-    this.scorer = new ScoringService();
+    this.scorer = scoringService;
 
     this.ai = new AIService({
       apiKey: config.openaiApiKey,
@@ -45,20 +34,12 @@ export class HermesAgent {
 
     this.storage = new StorageService(config.databasePath);
 
-    this.reporter = new ReportGenerator(config.reportsDir);
+    this.documents = new DocumentService(this.ai, this.storage, config.documentsDir);
 
-    this.documents = new DocumentService(
-      this.ai,
-      this.reporter,
-      this.storage,
-      config.documentsDir
-    );
-
-    logger.section('Hermes Agent Initialized');
+    logger.section('JobHermes SDET Copilot Initialized');
     logger.info('Config loaded', {
       model: config.openaiModel,
       db: config.databasePath,
-      reports: config.reportsDir,
     });
   }
 
@@ -98,7 +79,7 @@ export class HermesAgent {
       return;
     }
     this.isScanning = true;
-    logger.section('Daily Job Scan Starting');
+    logger.section('Daily SDET Job Scan Starting');
 
     const task = this.createTask('scrape');
     task.status = 'running';
@@ -108,87 +89,132 @@ export class HermesAgent {
     try {
       const profile = this.loadProfile();
       const targets = this.loadTargets();
-      const enabledTargets = targets.filter((t) => t.enabled);
+      const enabledTargets = targets.filter((t) => t.enabled && t.verified);
 
-      // 1. Scrape
-      logger.info(`Scraping ${enabledTargets.length} sources...`);
-      const scrapeResults = await this.scraper.scrapeAll(enabledTargets, this.config.scrapeConcurrency);
-
-      const allRawJobs: JobPosting[] = scrapeResults.flatMap((r) =>
-        r.jobs.map((j) => ({
-          ...j,
-          scrapedAt: r.scrapedAt,
-          source: r.company,
-          status: 'new' as const,
-          isApplied: false,
-          description: j.description || '',
-        }))
-      );
-
-      logger.info(`Total raw jobs: ${allRawJobs.length}`);
-
-      // 2. Initial Fast Score Pass
-      logger.info('Running preliminary scoring on raw jobs...');
-      const initialScored = this.scorer.scoreAll(allRawJobs, profile);
-
-      // 3. Filter for promising matches to fetch details (initial score >= 30)
-      const promisingJobs = initialScored.filter((j) => (j.score ?? 0) >= 30);
-      logger.info(`Promising jobs selected for detail fetching: ${promisingJobs.length}/${initialScored.length}`);
-
-      // 4. Fetch full job descriptions concurrently
-      logger.info('Fetching full job descriptions...');
-      await runConcurrent(
-        promisingJobs,
-        async (job) => {
-          try {
-            logger.debug(`Fetching details for: ${job.title} @ ${job.company}`);
-            const fullDesc = await this.scraper.fetchJobDetail(job.url);
-            if (fullDesc && fullDesc.trim().length > 100) {
-              job.description = fullDesc;
-            }
-          } catch (err) {
-            logger.warn(`Failed to fetch job details for ${job.title} @ ${job.company}`, { error: String(err) });
-          }
-        },
+      // 1. Fetch from structured ATS adapters
+      logger.info(`Fetching jobs across ${enabledTargets.length} company sources...`);
+      const { jobs: rawJobs, targetResults } = await fetchAllTargetsDetailed(
+        enabledTargets,
         this.config.scrapeConcurrency
       );
+      logger.info(`Total unique raw jobs collected: ${rawJobs.length}`);
 
-      // 5. Final Full Scoring Pass
-      logger.info('Running final scoring with complete job descriptions...');
-      const finalScored = this.scorer.scoreAll(promisingJobs, profile);
+      // 2. Build company contexts with signal and QA opening awareness
+      const companyQaCounts = new Map<string, number>();
+      for (const j of rawJobs) {
+        if (/qa|sdet|test|quality/i.test(j.title)) {
+          const compKey = j.company.toLowerCase().trim();
+          companyQaCounts.set(compKey, (companyQaCounts.get(compKey) || 0) + 1);
+        }
+      }
 
-      // 6. Filter by threshold
-      const filtered = this.scorer.filterByThreshold(finalScored, this.config.minScoreThreshold);
-      logger.info(`After final scoring filter (>= ${this.config.minScoreThreshold}): ${filtered.length} jobs`);
+      const companyContexts = new Map<string, ScoringContext>();
+      const distinctCompanies = new Set(rawJobs.map((j) => j.company.toLowerCase().trim()));
+      for (const compName of distinctCompanies) {
+        const comp = this.storage.getCompanyByName(compName);
+        let hasSignal = false;
+        let signalType: string | undefined;
+        let signalDetail = '';
+        let signalSource: string | undefined;
+        if (comp && comp.id) {
+          const signals = this.storage.getSignalsForCompany(comp.id);
+          if (signals.length > 0) {
+            hasSignal = true;
+            signalType = signals[0].signalType;
+            signalDetail = signals[0].detail;
+            signalSource = signals[0].source;
+          }
+        }
+        companyContexts.set(compName, {
+          companyOpenQaCount: companyQaCounts.get(compName) || 0,
+          hasCompanySignal: hasSignal,
+          signalType,
+          signalDetail,
+          signalSource,
+        });
+      }
 
-      // 7. Store in DB
-      for (const job of filtered) {
-        const id = this.storage.upsertJob(job);
+      logger.info('Scoring jobs with SDET scoring model...');
+      const scoredJobs = this.scorer.scoreAll(rawJobs, profile, companyContexts);
+
+      // 3. Filter by threshold and identify near misses (40–59)
+      const qualified = scoredJobs.filter((j) => (j.score ?? 0) >= this.config.minScoreThreshold);
+      const nearMisses = scoredJobs.filter(
+        (j) => (j.score ?? 0) >= 40 && (j.score ?? 0) < this.config.minScoreThreshold
+      );
+
+      logger.info(
+        `After scoring filter (>= ${this.config.minScoreThreshold}): ${qualified.length} matching jobs`
+      );
+      logger.info(`Near misses (40–59): ${nearMisses.length}`);
+
+      if (nearMisses.length > 0) {
+        logger.section('Near Misses (Score 40–59)');
+        nearMisses.forEach((j, i) => {
+          logger.info(`  #${i + 1} [Score: ${j.score}] ${j.title} @ ${j.company} (${j.location})`);
+          logger.info(
+            `     Missing: ${j.scoreBreakdown?.missingSkills.slice(0, 3).join(', ') || 'none'}`
+          );
+          logger.info(`     Key Reasons: ${j.reasons?.slice(0, 2).join(' | ')}`);
+        });
+      }
+
+      // 4. Store in SQLite DB (both qualified >= 60 and near-misses 40-59)
+      for (const job of qualified) {
+        const id = this.storage.upsertJob({ ...job, nearMiss: false });
+        if (job.score !== undefined && job.scoreBreakdown) {
+          this.storage.updateJobScore(id, job.score, job.scoreBreakdown);
+        }
+      }
+      for (const job of nearMisses) {
+        const id = this.storage.upsertJob({ ...job, nearMiss: true });
         if (job.score !== undefined && job.scoreBreakdown) {
           this.storage.updateJobScore(id, job.score, job.scoreBreakdown);
         }
       }
 
-      // 8. Generate report
-      const topJobs = this.storage.getTopJobs(this.config.topJobsCount, this.config.minScoreThreshold);
+      // Update stale/closed job sightings ONLY for companies where fetch succeeded (HTTP 200, valid parsed payload)
+      for (const res of targetResults) {
+        const compName = res.target.name;
+        if (!res.fetchSucceeded || !res.success) {
+          logger.warn(
+            `Stale-job detection skipped for ${compName}: fetch failed (${res.errorType || 'error'}${res.statusCode ? ` HTTP ${res.statusCode}` : ''}).`
+          );
+          continue;
+        }
+
+        const urlSet = new Set(res.jobs.map((j) => j.url));
+        const sightings = this.storage.recordJobSightings(compName, urlSet, {
+          fetchSucceeded: true,
+          skipIfEmptyWhenHadJobs: true,
+        });
+
+        if (sightings.newlyClosed.length > 0) {
+          logger.info(
+            `Closed ${sightings.newlyClosed.length} stale jobs for ${compName} absent for 2 consecutive scans.`
+          );
+        }
+      }
+
+      // 5. Generate AI summary
+      const topJobs = this.storage.getTopJobs(
+        this.config.topJobsCount,
+        this.config.minScoreThreshold
+      );
       const companiesCovered = enabledTargets.map((t) => t.name);
 
       let aiSummary: string | undefined;
       try {
-        aiSummary = await this.ai.generateDailySummary(topJobs, allRawJobs.length, companiesCovered);
+        aiSummary = await this.ai.generateDailySummary(topJobs, rawJobs.length, companiesCovered);
+        logger.info('AI Daily Summary:', { summary: aiSummary });
       } catch (err) {
-        logger.warn('AI summary generation failed', { error: String(err) });
+        logger.warn('AI summary generation skipped', { error: String(err) });
       }
 
-      const report = this.reporter.buildReport(topJobs, companiesCovered, aiSummary);
-      const reportPath = this.reporter.generateDailyReport(report, aiSummary);
+      this.storage.completeScanRun(runId, rawJobs.length, qualified.length, companiesCovered);
+      this.completeTask(task, { jobsFound: qualified.length, topCount: topJobs.length });
 
-      this.storage.logReport(reportPath, topJobs.length);
-      this.storage.completeScanRun(runId, allRawJobs.length, filtered.length, companiesCovered);
-
-      this.completeTask(task, { jobsFound: filtered.length, reportPath });
-
-      logger.success(`Daily scan complete! Report: ${reportPath}`);
+      logger.success(`Daily scan complete! Found ${qualified.length} qualified SDET roles.`);
     } catch (err) {
       const errMsg = err instanceof Error ? err.message : String(err);
       this.failTask(task, errMsg);
@@ -196,40 +222,6 @@ export class HermesAgent {
       throw err;
     } finally {
       this.isScanning = false;
-    }
-  }
-
-  // ─── Report Only ───────────────────────────────────────────
-
-  async generateReport(): Promise<string> {
-    logger.section('Generating Report from Stored Jobs');
-
-    const task = this.createTask('report');
-    task.status = 'running';
-
-    try {
-      const topJobs = this.storage.getTopJobs(this.config.topJobsCount, this.config.minScoreThreshold);
-      const targets = this.loadTargets();
-      const companiesCovered = targets.filter((t) => t.enabled).map((t) => t.name);
-
-      let aiSummary: string | undefined;
-      try {
-        aiSummary = await this.ai.generateDailySummary(topJobs, topJobs.length, companiesCovered);
-      } catch {
-        // AI summary is optional
-      }
-
-      const report = this.reporter.buildReport(topJobs, companiesCovered, aiSummary);
-      const reportPath = this.reporter.generateDailyReport(report, aiSummary);
-
-      this.storage.logReport(reportPath, topJobs.length);
-      this.completeTask(task, { reportPath });
-
-      return reportPath;
-    } catch (err) {
-      const errMsg = err instanceof Error ? err.message : String(err);
-      this.failTask(task, errMsg);
-      throw err;
     }
   }
 
@@ -285,7 +277,10 @@ export class HermesAgent {
   // ─── Getters ───────────────────────────────────────────────
 
   getTopJobs(limit?: number): JobPosting[] {
-    return this.storage.getTopJobs(limit ?? this.config.topJobsCount, this.config.minScoreThreshold);
+    return this.storage.getTopJobs(
+      limit ?? this.config.topJobsCount,
+      this.config.minScoreThreshold
+    );
   }
 
   getAllJobs(): JobPosting[] {
@@ -320,6 +315,35 @@ export class HermesAgent {
 
   isCurrentlyScanning(): boolean {
     return this.isScanning;
+  }
+
+  async scanAllQaTitles(): Promise<
+    Array<{
+      title: string;
+      company: string;
+      location: string;
+      url: string;
+      source: string;
+      isSdetMatch: boolean;
+    }>
+  > {
+    const targets = this.loadTargets().filter((t) => t.enabled && t.verified);
+    const rawJobs = await fetchAllTargets(targets, this.config.scrapeConcurrency);
+
+    const qaRegex = /\b(qa|quality|test|sdet|automation|assurance|testing)\b/i;
+    const qaJobs = rawJobs.filter((j) => qaRegex.test(j.title));
+
+    const sdetRegex =
+      /\b(sdet|software (?:development )?engineer in test|qa automation|test automation|automation test engineer|set)\b/i;
+
+    return qaJobs.map((j) => ({
+      title: j.title,
+      company: j.company,
+      location: j.location,
+      url: j.url,
+      source: j.source,
+      isSdetMatch: sdetRegex.test(j.title),
+    }));
   }
 
   shutdown(): void {

@@ -1,0 +1,19 @@
+{
+  "results": [
+    {
+      "id": "adzuna-101",
+      "title": "Senior SDET Automation",
+      "company": {
+        "display_name": "Fintech Innovations"
+      },
+      "location": {
+        "display_name": "Gurgaon, Haryana"
+      },
+      "redirect_url": "https://www.adzuna.in/land/ad/101",
+      "description": "Looking for SDET with Java, Rest Assured and Selenium expertise.",
+      "created": "2026-10-11T12:00:00Z",
+      "salary_min": 1800000,
+      "salary_max": 2400000
+    }
+  ]
+}

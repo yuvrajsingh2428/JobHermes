@@ -14,8 +14,33 @@
     "cover-letter": "ts-node src/index.ts --cover-letter",
     "clean": "rimraf dist",
     "lint": "eslint src --ext .ts",
+    "format": "prettier --write \"src/**/*.{ts,js,json,css,html}\" \"tests/**/*.ts\"",
+    "format:check": "prettier --check \"src/**/*.{ts,js,json,css,html}\" \"tests/**/*.ts\"",
     "typecheck": "tsc --noEmit",
-    "push-staging": "node scripts/push-staging.js"
+    "test": "vitest run",
+    "test:unit": "vitest run tests/unit",
+    "test:contract": "vitest run tests/contract",
+    "test:api": "vitest run tests/api",
+    "test:e2e": "vitest run tests/e2e",
+    "test:coverage": "vitest run --coverage",
+    "test:watch": "vitest",
+    "verify-targets": "ts-node src/index.ts verify-targets",
+    "add-company": "ts-node src/index.ts add-company",
+    "doctor": "ts-node src/index.ts doctor",
+    "first-run": "ts-node src/index.ts first-run",
+    "signal": "ts-node src/index.ts signal",
+    "import-contacts": "ts-node src/index.ts import-contacts",
+    "contacts": "ts-node src/index.ts contacts",
+    "application": "ts-node src/index.ts application",
+    "outreach": "ts-node src/index.ts outreach",
+    "dashboard": "ts-node src/index.ts --dashboard",
+    "digest": "ts-node src/index.ts digest",
+    "export": "ts-node src/index.ts export",
+    "backup": "ts-node src/index.ts backup",
+    "rescore": "ts-node src/index.ts rescore",
+    "seed-demo": "ts-node -e \"import { seedDemoSandbox } from './src/utils/demo-sandbox'; seedDemoSandbox();\"",
+    "push-staging": "node scripts/push-staging.js",
+    "prepare": "husky"
   },
   "keywords": [
     "job-hunting",
@@ -31,19 +56,20 @@
     "npm": ">=9.0.0"
   },
   "dependencies": {
-    "@types/exceljs": "^0.5.3",
     "@types/uuid": "^10.0.0",
     "axios": "^1.6.0",
     "better-sqlite3": "^12.11.1",
     "cheerio": "^1.0.0",
     "dotenv": "^16.4.5",
-    "exceljs": "^4.4.0",
     "express": "^5.2.1",
     "node-cron": "^3.0.3",
-    "node-fetch": "^2.7.0",
+    "nodemailer": "^10.1.0",
     "openai": "^4.47.3",
+    "pino": "^10.4.0",
+    "pino-pretty": "^13.2.0",
     "playwright": "^1.63.0",
-    "uuid": "^14.0.0"
+    "uuid": "^14.0.0",
+    "zod": "^3.25.76"
   },
   "devDependencies": {
     "@types/better-sqlite3": "^7.6.8",
@@ -51,7 +77,15 @@
     "@types/express": "^5.0.6",
     "@types/node": "^22.10.0",
     "@types/node-cron": "^3.0.11",
+    "@types/nodemailer": "^8.0.2",
+    "@typescript-eslint/eslint-plugin": "^7.18.0",
+    "@typescript-eslint/parser": "^7.18.0",
+    "@vitest/coverage-v8": "^5.0.5",
+    "eslint": "^8.57.1",
+    "husky": "^9.1.7",
+    "prettier": "^3.9.10",
     "ts-node": "^10.9.2",
-    "typescript": "^5.4.5"
+    "typescript": "^5.4.5",
+    "vitest": "^5.0.4"
   }
 }

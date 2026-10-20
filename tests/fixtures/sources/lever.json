@@ -1,0 +1,30 @@
+[
+  {
+    "id": "lever-sdet-1",
+    "text": "Quality Assurance Automation Engineer",
+    "hostedUrl": "https://jobs.lever.co/cred/lever-sdet-1",
+    "applyUrl": "https://jobs.lever.co/cred/lever-sdet-1/apply",
+    "createdAt": 1728500000000,
+    "categories": {
+      "location": "Bangalore",
+      "team": "Engineering",
+      "commitment": "Full Time",
+      "workplaceType": "hybrid"
+    },
+    "descriptionPlain": "Require 1-3 years experience in test automation using Playwright, TypeScript, and Postman API testing.",
+    "additionalPlain": "Competitive salary and equity."
+  },
+  {
+    "id": "lever-fe-2",
+    "text": "Frontend Engineer",
+    "hostedUrl": "https://jobs.lever.co/cred/lever-fe-2",
+    "createdAt": 1728400000000,
+    "categories": {
+      "location": "Bangalore",
+      "team": "Frontend",
+      "commitment": "Full Time",
+      "workplaceType": "on-site"
+    },
+    "descriptionPlain": "React and TypeScript web apps."
+  }
+]
