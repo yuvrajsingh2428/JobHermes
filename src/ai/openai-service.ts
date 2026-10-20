@@ -156,7 +156,7 @@ export class AIService {
 <div style="font-family:'Inter',sans-serif;color:#1e293b;line-height:1.7;max-width:700px;margin:0 auto;padding:20px">
   <p style="margin-bottom:20px">Dear Hiring Team at ${job.company},</p>
   
-  <p style="margin-bottom:16px">I am writing to express my interest in the <strong>${job.title}</strong> role. As a ${profile.title || 'SDET'} with a strong foundation in ${languages} and test automation engineering, I have spent the last few years developing resilient testing frameworks and modern automation pipelines.</p>
+  <p style="margin-bottom:16px">I came across the <strong>${job.title}</strong> role at ${job.company} and wanted to reach out directly. As a ${profile.title || 'SDET'} with a strong foundation in ${languages} and test automation engineering, I have spent the last few years developing resilient testing frameworks and modern automation pipelines.</p>
   
   <p style="margin-bottom:16px">In my recent work as ${recentRole} at ${recentComp}, I designed and maintained test frameworks to improve software quality and reliability.</p>
   

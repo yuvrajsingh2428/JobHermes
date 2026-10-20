@@ -262,7 +262,6 @@ export class DraftGenerator {
     citedFacts.push(`Key achievement: ${achievementSnippet}`);
     if (secondAchievement) citedFacts.push(`Secondary achievement: ${secondAchievement}`);
 
-    let companyContextSnippet = '';
     let briefObj: any = null;
     if (company.researchBrief) {
       try {
@@ -275,36 +274,57 @@ export class DraftGenerator {
       }
     }
 
-    if (validSignals.length > 0 && briefObj?.recentSpecificThing) {
-      companyContextSnippet = `Following ${company.name}'s work on ${briefObj.recentSpecificThing} and your team's update regarding ${validSignals[0].detail}, `;
-      citedFacts.push(`Company brief: ${briefObj.recentSpecificThing}`);
+    const hasValidSignal = validSignals.length > 0;
+    const hasBrief = Boolean(briefObj?.recentSpecificThing || briefObj?.whatTheyBuild);
+
+    let openingA = '';
+    let openingB = '';
+
+    if (hasValidSignal && hasBrief) {
+      const briefTopic = briefObj.recentSpecificThing || briefObj.whatTheyBuild;
+      openingA = `I noticed ${company.name}'s work on ${briefTopic} and saw a post about ${validSignals[0].detail}. Over the past ${years} years, I have specialized in test automation with ${topSkills}.`;
+      openingB = `I saw the ${job.title} opening at ${company.name}. I noticed ${company.name}'s work on ${briefTopic} and saw a post about ${validSignals[0].detail}.`;
+      citedFacts.push(`Company brief: ${briefTopic}`);
       citedFacts.push(`Company signal: ${validSignals[0].detail} (${validSignals[0].url})`);
-    } else if (validSignals.length > 0) {
-      companyContextSnippet = `Noticed your team's recent ${validSignals[0].signalType} update regarding ${validSignals[0].detail}. `;
+    } else if (hasValidSignal) {
+      openingA = `I saw a post about ${validSignals[0].detail} regarding the ${job.title} role at ${company.name}. Over the past ${years} years, I have specialized in test automation with ${topSkills}.`;
+      openingB = `I saw the ${job.title} opening at ${company.name} after I saw a post about ${validSignals[0].detail}.`;
       citedFacts.push(`Company signal: ${validSignals[0].detail} (${validSignals[0].url})`);
-    } else if (briefObj?.recentSpecificThing) {
-      companyContextSnippet = `I've been following ${company.name}'s work on ${briefObj.recentSpecificThing}. `;
-      citedFacts.push(`Company brief: ${briefObj.recentSpecificThing}`);
-    } else if (briefObj?.whatTheyBuild) {
-      companyContextSnippet = `I've been following ${company.name}'s work on ${briefObj.whatTheyBuild}. `;
-      citedFacts.push(`Company brief: ${briefObj.whatTheyBuild}`);
+    } else if (hasBrief) {
+      const briefTopic = briefObj.recentSpecificThing || briefObj.whatTheyBuild;
+      const briefClause = briefObj.recentSpecificThing
+        ? `I noticed ${company.name}'s work on ${briefObj.recentSpecificThing}`
+        : `I read that ${company.name} develops ${briefObj.whatTheyBuild}`;
+      openingA = `${briefClause}. Over the past ${years} years, I have specialized in test automation with ${topSkills}.`;
+      openingB = `I saw the ${job.title} opening at ${company.name}. ${briefClause}.`;
+      citedFacts.push(`Company brief: ${briefTopic}`);
+    } else {
+      openingA = `I came across the ${job.title} role at ${company.name} and wanted to reach out directly. Over the past ${years} years, I have specialized in test automation with ${topSkills}.`;
+      openingB = `I saw the ${job.title} opening at ${company.name} and wanted to reach out directly.`;
     }
+
+    const cleanAch1 = achievementSnippet.trim().replace(/[.,;]+$/, '');
+    const cleanAch2 = secondAchievement ? secondAchievement.trim().replace(/[.,;]+$/, '') : '';
+    const achParaA = cleanAch2
+      ? `In my recent role, I ${cleanAch1}. Additionally, I ${cleanAch2.charAt(0).toLowerCase() + cleanAch2.slice(1)}.`
+      : `In my recent role, I ${cleanAch1}.`;
+
+    const achParaB = cleanAch2
+      ? `My core test stack matches your requirements: ${topSkills}. Over the past ${years} years, I ${cleanAch1}. I also ${cleanAch2.charAt(0).toLowerCase() + cleanAch2.slice(1)}.`
+      : `My core test stack matches your requirements: ${topSkills}. Over the past ${years} years, I ${cleanAch1}.`;
 
     const contactFirstName = contact.fullName.split(' ')[0] || 'there';
 
     // ─── Variant A: Problem/Solution & Framework Architecture Focus ─
     // Subject rule: under 8 words (< 8 words)
     const subjectA = `SDET test automation @ ${company.name}`;
-    const openingA = companyContextSnippet
-      ? `${companyContextSnippet}Over the past ${years} years, I have specialized in test automation with ${topSkills}.`
-      : `I came across the ${job.title} role at ${company.name} and wanted to reach out directly. Over the past ${years} years, I have specialized in test automation with ${topSkills}.`;
 
     const bodyA = [
       `Hi ${contactFirstName},`,
       ``,
       openingA,
       ``,
-      `In my recent role, I ${achievementSnippet}. Additionally, I ${secondAchievement.toLowerCase()}.`,
+      achParaA,
       ``,
       `Would you be open to a brief 10-minute conversation next week to see if my testing background aligns with your team's needs?`,
       ``,
@@ -317,16 +337,13 @@ export class DraftGenerator {
     // ─── Variant B: Direct Traction & Metrics Focus ────────────
     // Subject rule: under 8 words (< 8 words)
     const subjectB = `Quick note: SDET @ ${company.name}`;
-    const openingB = companyContextSnippet
-      ? `I saw the ${job.title} opening at ${company.name}. ${companyContextSnippet.trim()}`
-      : `I saw the ${job.title} opening at ${company.name} and wanted to reach out directly.`;
 
     const bodyB = [
       `Hi ${contactFirstName},`,
       ``,
       openingB,
       ``,
-      `My core test stack matches your requirements: ${topSkills}. Over the past ${years} years, I ${achievementSnippet}. I also ${secondAchievement.toLowerCase()}.`,
+      achParaB,
       ``,
       `Would you be open to a brief 10-minute conversation next week to discuss how my test automation experience could support your team?`,
       ``,

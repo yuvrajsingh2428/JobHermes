@@ -233,6 +233,9 @@ The engine refuses real-mode execution if:
 - Recipient is on the suppression list.
 - Real mode switch (`SEND_REAL_EMAILS`) is `false`.
 
+### 6. Mandatory Human Review for AI Resumes & Cover Letters
+All tailored resumes and cover letters generated via GPT-4o or offline templates must be reviewed by hand before submission. Automated submission of AI-generated documents without human verification is strictly prohibited; the candidate retains full responsibility for verifying accuracy and factual alignment.
+
 ---
 
 ## Testing Strategy
