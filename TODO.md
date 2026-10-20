@@ -62,3 +62,15 @@
 - [x] `first-run` CLI reporter checking configuration completeness
 - [x] Production portfolio README with pitch, Mermaid architecture, 5-step quickstart, safety model, and design decisions
 - [x] Updated CHANGELOG.md and TODO.md
+
+---
+
+## Known Limitations & Intentional Architectural Constraints
+
+1. **No Automated Inbox / Reply Detection**: JobHermes intentionally does not connect to email providers via IMAP or Gmail API to read incoming mail. Reply tracking is recorded manually via CLI (`outreach reply <id> [outcome]`) or the Dashboard UI to avoid storing broad mailbox credentials or requesting sensitive permissions.
+2. **Hunter.io Email Verification Is Optional**: Live email verification via Hunter.io is strictly optional and guarded by a configurable monthly quota cap (default: 25 calls/month in SQLite `api_usage`). When unset or exhausted, candidate contacts can be manually verified (`contacts verify <id>`) or imported with verified status.
+3. **LinkedIn Outreach Is Manual by Design**: To strictly comply with LinkedIn Terms of Service and prevent account bans, JobHermes does not automate browser interactions or automated DM sending on LinkedIn. The copilot generates optimized, role-specific referral copy (<75 words) formatted for one-click copy and manual candidate delivery.
+4. **Localhost-Only Single-User Security Model**: The Express dashboard server binds strictly to `127.0.0.1` and is protected by `X-Hermes-Token` authentication and strict Origin/Referer CSRF validation. It is intentionally designed as a local developer tool, not a multi-tenant or publicly accessible web service.
+5. **Zero Fabrication of Candidate Skills & Experience**: Resume tailoring and outreach drafting strictly forbid adding skills, years of experience, or metrics not already present in the candidate profile or base resume. Any keyword gap is surfaced for candidate review rather than hallucinated.
+6. **Clock Overrides Restricted to Test Execution**: Test clocks cannot be passed or overridden via HTTP parameters, request headers, or runtime environment variables in production mode. Dynamic time travel is only accessible via programmatically set in-memory hooks during test execution (`NODE_ENV === 'test'`).
+

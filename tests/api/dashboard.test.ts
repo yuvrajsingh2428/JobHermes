@@ -312,6 +312,7 @@ describe('Phase 4 Dashboard Server & REST API Tests', () => {
     expect(approveRes.status).toBe(200);
 
     // Attempt real send (must be refused by safety guards: send-window, [FILL] check, or SMTP credentials)
+    server.setTestClock(new Date('2026-10-14T14:30:00.000Z'));
     const sendRes = await fetch(`${baseUrl}/api/outreach/${outreachId}/send`, {
       method: 'POST',
       headers: {
@@ -493,16 +494,17 @@ describe('Phase 4 Dashboard Server & REST API Tests', () => {
     expect(res.headers.get('access-control-allow-origin')).toBeNull();
   });
 
-  it('21. Clock Override Security: Ignores fakeNow in HTTP requests and prevents clock manipulation via API', async () => {
+  it('21. Clock Override Security: Ignores fakeNow in HTTP requests and proves both outside/inside window behavior', async () => {
     // 1. Approve outreach draft #1 and ensure contact email is verified
     storage.updateContactEmailStatus(1, 'verified');
     storage.updateOutreachStatus(1, 'approved');
 
-    // 2. Set server test clock to an out-of-hours timestamp (Sunday 23:00 IST)
+    // Case A: Pin server clock OUTSIDE the contact's send window (Sunday 13:30 EDT / 17:30 UTC)
+    // Recipient timezone: America/New_York (Mon-Fri 09:00-18:00)
     server.setTestClock(new Date('2026-10-18T17:30:00.000Z'));
 
-    // 3. Send HTTP POST with fakeNow set to inside business window (Wednesday 11:30 IST)
-    const res = await fetch(`${baseUrl}/api/outreach/1/send`, {
+    // Send HTTP POST with fakeNow set INSIDE business window (Wednesday 10:30 EDT / 14:30 UTC)
+    const blockedRes = await fetch(`${baseUrl}/api/outreach/1/send`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -510,17 +512,43 @@ describe('Phase 4 Dashboard Server & REST API Tests', () => {
       },
       body: JSON.stringify({
         dryRun: true,
-        fakeNow: '2026-10-14T06:00:00.000Z', // Attempted bypass via HTTP body
+        fakeNow: '2026-10-14T14:30:00.000Z', // Attempted bypass via HTTP body
       }),
     });
 
-    const data = await res.json();
-    // Proves that fakeNow in HTTP body was completely ignored and send was blocked by real server test clock
-    expect(data.success).toBe(false);
-    expect(data.error).toMatch(/Outside business hours|Outside business days/i);
+    const blockedData = await blockedRes.json();
+    // Proves fakeNow in HTTP body was completely ignored and send was blocked by pinned server test clock
+    expect(blockedData.success).toBe(false);
+    expect(blockedData.error).toMatch(/Outside business hours|Outside business days/i);
 
     // Draft remains approved and was not sent
-    const draft = storage.getOutreachById(1);
+    let draft = storage.getOutreachById(1);
     expect(draft?.status).toBe('approved');
+
+    // Case B: Pin server clock INSIDE the contact's send window (Wednesday 10:30 EDT / 14:30 UTC)
+    // Send standard dry-run request with NO fakeNow
+    server.setTestClock(new Date('2026-10-14T14:30:00.000Z'));
+
+    const allowedRes = await fetch(`${baseUrl}/api/outreach/1/send`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Hermes-Token': server.getLocalToken(),
+      },
+      body: JSON.stringify({
+        dryRun: true,
+      }),
+    });
+
+    const allowedData = await allowedRes.json();
+    // Proves that when pinned INSIDE window, send succeeds in dry-run
+    expect(allowedData.success).toBe(true);
+    expect(allowedData.emlPath).toBeDefined();
+
+    // Draft transitions to sent in DB and .eml was created
+    draft = storage.getOutreachById(1);
+    expect(draft?.status).toBe('sent');
+    expect(draft?.sentAt).toBeDefined();
+    expect(fs.existsSync(allowedData.emlPath!)).toBe(true);
   });
 });

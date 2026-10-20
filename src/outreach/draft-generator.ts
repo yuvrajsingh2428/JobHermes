@@ -201,7 +201,10 @@ export class DraftGenerator {
 
     // 2. Strict Grounding: Filter signals to only verified real-source signals with URLs
     const validSignals = signals.filter(
-      (s) => s.source !== 'demo' && s.source !== 'test' && s.url && s.url.startsWith('http')
+      (s) =>
+        (options?.allowFillForDemo || (s.source !== 'demo' && s.source !== 'test')) &&
+        s.url &&
+        s.url.startsWith('http')
     );
 
     const citedFacts: string[] = [];
@@ -259,23 +262,32 @@ export class DraftGenerator {
     citedFacts.push(`Key achievement: ${achievementSnippet}`);
     if (secondAchievement) citedFacts.push(`Secondary achievement: ${secondAchievement}`);
 
-    let signalSnippet = '';
-    if (validSignals.length > 0) {
-      signalSnippet = `Noticed your team's recent ${validSignals[0].signalType} update (${validSignals[0].detail}). `;
-      citedFacts.push(`Company signal: ${validSignals[0].detail} (${validSignals[0].url})`);
-    } else if (company.researchBrief) {
+    let companyContextSnippet = '';
+    let briefObj: any = null;
+    if (company.researchBrief) {
       try {
-        const brief =
+        briefObj =
           typeof company.researchBrief === 'string'
             ? JSON.parse(company.researchBrief)
             : company.researchBrief;
-        if (brief?.recentSpecificThing) {
-          signalSnippet = `I've been following ${company.name}'s work on ${brief.recentSpecificThing}. `;
-          citedFacts.push(`Company brief: ${brief.recentSpecificThing}`);
-        }
       } catch {
-        // Plain string brief
+        // Plain string
       }
+    }
+
+    if (validSignals.length > 0 && briefObj?.recentSpecificThing) {
+      companyContextSnippet = `Following ${company.name}'s work on ${briefObj.recentSpecificThing} and your team's update regarding ${validSignals[0].detail}, `;
+      citedFacts.push(`Company brief: ${briefObj.recentSpecificThing}`);
+      citedFacts.push(`Company signal: ${validSignals[0].detail} (${validSignals[0].url})`);
+    } else if (validSignals.length > 0) {
+      companyContextSnippet = `Noticed your team's recent ${validSignals[0].signalType} update regarding ${validSignals[0].detail}. `;
+      citedFacts.push(`Company signal: ${validSignals[0].detail} (${validSignals[0].url})`);
+    } else if (briefObj?.recentSpecificThing) {
+      companyContextSnippet = `I've been following ${company.name}'s work on ${briefObj.recentSpecificThing}. `;
+      citedFacts.push(`Company brief: ${briefObj.recentSpecificThing}`);
+    } else if (briefObj?.whatTheyBuild) {
+      companyContextSnippet = `I've been following ${company.name}'s work on ${briefObj.whatTheyBuild}. `;
+      citedFacts.push(`Company brief: ${briefObj.whatTheyBuild}`);
     }
 
     const contactFirstName = contact.fullName.split(' ')[0] || 'there';
@@ -283,8 +295,8 @@ export class DraftGenerator {
     // ─── Variant A: Problem/Solution & Framework Architecture Focus ─
     // Subject rule: under 8 words (< 8 words)
     const subjectA = `SDET test automation @ ${company.name}`;
-    const openingA = signalSnippet
-      ? `${signalSnippet}Over the past ${years} years, I have specialized in test automation with ${topSkills}.`
+    const openingA = companyContextSnippet
+      ? `${companyContextSnippet}Over the past ${years} years, I have specialized in test automation with ${topSkills}.`
       : `I came across the ${job.title} role at ${company.name} and wanted to reach out directly. Over the past ${years} years, I have specialized in test automation with ${topSkills}.`;
 
     const bodyA = [
@@ -305,8 +317,8 @@ export class DraftGenerator {
     // ─── Variant B: Direct Traction & Metrics Focus ────────────
     // Subject rule: under 8 words (< 8 words)
     const subjectB = `Quick note: SDET @ ${company.name}`;
-    const openingB = signalSnippet
-      ? `I noticed the ${job.title} opening at ${company.name} following your recent team update.`
+    const openingB = companyContextSnippet
+      ? `I saw the ${job.title} opening at ${company.name}. ${companyContextSnippet.trim()}`
       : `I saw the ${job.title} opening at ${company.name} and wanted to reach out directly.`;
 
     const bodyB = [

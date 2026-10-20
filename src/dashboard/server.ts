@@ -592,7 +592,7 @@ export class DashboardServer {
           const tz = contact?.timezone || 'Asia/Kolkata';
 
           // Timezone send window evaluation
-          const windowEval = isWithinSendWindow(tz);
+          const windowEval = isWithinSendWindow(tz, this.getTestClock());
 
           // Automated lint check
           const lint = lintOutreachDraft(o.subject, o.body);
@@ -734,7 +734,7 @@ export class DashboardServer {
         const sendService = new SendService(storage, 20, isDryRun);
         const profile = readJsonFile<CandidateProfile>('./config/candidate-profile.json');
 
-        const effectiveNow = process.env.NODE_ENV === 'test' ? this.testClock : undefined;
+        const effectiveNow = this.getTestClock();
 
         const result = await sendService.sendOutreach(id, profile, {
           bypassTimezone: Boolean(bypassWindow),
