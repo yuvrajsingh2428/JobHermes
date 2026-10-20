@@ -17,6 +17,9 @@ export default defineConfig({
         'scratch/**',
         'src/dashboard/public/**',
       ],
+      thresholds: {
+        statements: 70,
+      },
     },
   },
 });

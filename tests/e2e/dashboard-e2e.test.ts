@@ -238,6 +238,10 @@ describe('Phase 5 Playwright E2E Tests on demo.db', () => {
     // 1. OUT OF HOURS TEST: Sunday evening (2026-10-18T23:00:00+05:30)
     // 23:00 IST is outside Mon-Fri 09:00-18:00
     const outOfHoursDate = '2026-10-18T17:30:00.000Z'; // Sunday 23:00 IST
+    server.setTestClock(new Date(outOfHoursDate));
+
+    // Try sending fakeNow inside window in HTTP body while server test clock is out of hours:
+    // Should be blocked because HTTP fakeNow is ignored!
     const blockedRes = await fetch(`${baseUrl}/api/outreach/${draftId}/send`, {
       method: 'POST',
       headers: {
@@ -246,7 +250,7 @@ describe('Phase 5 Playwright E2E Tests on demo.db', () => {
       },
       body: JSON.stringify({
         dryRun: true,
-        fakeNow: outOfHoursDate,
+        fakeNow: '2026-10-14T06:00:00.000Z', // Ignored by server
       }),
     });
 
@@ -261,6 +265,8 @@ describe('Phase 5 Playwright E2E Tests on demo.db', () => {
     // 2. IN-WINDOW TEST: Wednesday 11:30 AM IST (2026-10-14T06:00:00.000Z)
     // Mon-Fri 09:00-18:00
     const inWindowDate = '2026-10-14T06:00:00.000Z'; // Wednesday 11:30 IST
+    server.setTestClock(new Date(inWindowDate));
+
     const allowedRes = await fetch(`${baseUrl}/api/outreach/${draftId}/send`, {
       method: 'POST',
       headers: {
@@ -269,7 +275,6 @@ describe('Phase 5 Playwright E2E Tests on demo.db', () => {
       },
       body: JSON.stringify({
         dryRun: true,
-        fakeNow: inWindowDate,
       }),
     });
 

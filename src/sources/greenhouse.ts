@@ -76,7 +76,7 @@ export class GreenhouseSource implements JobSource {
       logger.error(`Error fetching Greenhouse jobs for ${target.name} (${slug})`, {
         error: String(err),
       });
-      return [];
+      throw err;
     }
   }
 }

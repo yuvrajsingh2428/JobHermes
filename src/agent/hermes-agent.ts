@@ -176,7 +176,7 @@ export class HermesAgent {
       // Update stale/closed job sightings ONLY for companies where fetch succeeded (HTTP 200, valid parsed payload)
       for (const res of targetResults) {
         const compName = res.target.name;
-        if (!res.success) {
+        if (!res.fetchSucceeded || !res.success) {
           logger.warn(
             `Stale-job detection skipped for ${compName}: fetch failed (${res.errorType || 'error'}${res.statusCode ? ` HTTP ${res.statusCode}` : ''}).`
           );

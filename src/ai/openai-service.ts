@@ -88,15 +88,15 @@ export class AIService {
 
   <section style="margin-bottom:20px">
     <h2 style="color:#1e3a8a;border-bottom:1px solid #e2e8f0;padding-bottom:4px;font-size:18px">Technical Skills</h2>
-    <p><strong>Languages:</strong> ${profile.skills.languages.join(', ')}</p>
-    <p><strong>Frontend:</strong> ${profile.skills.frontend.join(', ')}</p>
-    <p><strong>Backend:</strong> ${profile.skills.backend.join(', ')}</p>
-    <p><strong>Databases & Tools:</strong> ${[...profile.skills.databases, ...profile.skills.tools].join(', ')}</p>
+    <p><strong>Languages:</strong> ${(profile.skills?.languages || []).join(', ')}</p>
+    <p><strong>Automation Tools:</strong> ${(profile.skills?.automationTools || (profile.skills as any)?.frontend || []).join(', ')}</p>
+    <p><strong>Frameworks:</strong> ${(profile.skills?.frameworks || (profile.skills as any)?.backend || []).join(', ')}</p>
+    <p><strong>DevOps & Tools:</strong> ${[...((profile.skills as any)?.devopsAndCiCd || []), ...((profile.skills as any)?.databases || []), ...((profile.skills as any)?.tools || [])].join(', ')}</p>
   </section>
 
   <section style="margin-bottom:20px">
     <h2 style="color:#1e3a8a;border-bottom:1px solid #e2e8f0;padding-bottom:4px;font-size:18px">Work Experience</h2>
-    ${profile.experience
+    ${(profile.experience || [])
       .map(
         (exp) => `
       <div style="margin-bottom:14px">
@@ -106,7 +106,7 @@ export class AIService {
         </div>
         <div style="color:#4b5563;font-style:italic;margin-bottom:4px">${exp.company}</div>
         <ul style="margin:0;padding-left:20px">
-          ${exp.highlights.map((h) => `<li>${h}</li>`).join('')}
+          ${(exp.highlights || []).map((h) => `<li>${h}</li>`).join('')}
         </ul>
       </div>
     `
@@ -116,8 +116,8 @@ export class AIService {
 
   <section>
     <h2 style="color:#1e3a8a;border-bottom:1px solid #e2e8f0;padding-bottom:4px;font-size:18px">Education & Certifications</h2>
-    <p>${profile.education.map((e) => `${e.degree} - ${e.institution} (${e.year})`).join(', ')}</p>
-    <p><strong>Certifications:</strong> ${profile.certifications.join(', ')}</p>
+    <p>${(profile.education || []).map((e) => `${e.degree} - ${e.institution} (${e.year})`).join(', ')}</p>
+    <p><strong>Certifications:</strong> ${(profile.certifications || []).join(', ')}</p>
   </section>
 </div>`;
     }
@@ -139,16 +139,28 @@ export class AIService {
     logger.info(`Generating cover letter for: ${job.title} at ${job.company} [tone: ${tone}]`);
 
     if (this.isMock) {
-      const recentExp = profile.experience[0];
+      const recentExp = profile.experience?.[0];
+      const recentRole = recentExp?.role || profile.title || 'SDET';
+      const recentComp = recentExp?.company || 'my previous team';
+      const languages = (profile.skills?.languages || ['Java', 'TypeScript'])
+        .slice(0, 3)
+        .join(', ');
+      const techSkills = (
+        profile.skills?.automationTools ||
+        (profile.skills as any)?.backend || ['Playwright', 'REST Assured']
+      )
+        .slice(0, 3)
+        .join(', ');
+
       return `
 <div style="font-family:'Inter',sans-serif;color:#1e293b;line-height:1.7;max-width:700px;margin:0 auto;padding:20px">
   <p style="margin-bottom:20px">Dear Hiring Team at ${job.company},</p>
   
-  <p style="margin-bottom:16px">I am writing to express my enthusiastic interest in the <strong>${job.title}</strong> role. As a ${profile.title} with a strong foundation in ${profile.skills.languages.slice(0, 3).join(', ')} and backend engineering, I have spent the last few years developing resilient APIs and modern web applications that deliver high-impact results.</p>
+  <p style="margin-bottom:16px">I came across the <strong>${job.title}</strong> role at ${job.company} and wanted to reach out directly. As a ${profile.title || 'SDET'} with a strong foundation in ${languages} and test automation engineering, I have spent the last few years developing resilient testing frameworks and modern automation pipelines.</p>
   
-  <p style="margin-bottom:16px">In my recent position as ${recentExp?.role} at ${recentExp?.company}, I was responsible for key initiatives including reducing API latency and leading system design choices. I notice that your team values engineering quality and speed, which aligns directly with my focus on clean architecture and high-performance infrastructure.</p>
+  <p style="margin-bottom:16px">In my recent work as ${recentRole} at ${recentComp}, I designed and maintained test frameworks to improve software quality and reliability.</p>
   
-  <p style="margin-bottom:16px">I am excited by the opportunity to bring my skills in ${profile.skills.backend.slice(0, 3).join(', ')} to ${job.company}. I look forward to the possibility of discussing how my experience fits your team's current challenges.</p>
+  <p style="margin-bottom:16px">I am excited by the opportunity to bring my skills in ${techSkills} to ${job.company}. I look forward to the possibility of discussing how my experience aligns with your team.</p>
   
   <p style="margin-top:24px">Sincerely,<br><strong>${profile.name}</strong></p>
 </div>`;

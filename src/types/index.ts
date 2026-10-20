@@ -159,10 +159,42 @@ export const CandidateProfileSchema = z.object({
   openToRemote: z.boolean().default(true),
   minSalaryLPA: z.union([z.number(), z.string()]).default('[FILL]'),
   noticePeriodDays: z.number().default(30),
-  achievements: z.array(z.string()).default([]),
+  achievements: z
+    .array(
+      z.union([
+        z.string(),
+        z.object({
+          text: z.string(),
+          source: z.string().optional(),
+        }),
+      ])
+    )
+    .default([]),
+  achievementsSource: z.string().optional(),
 });
 
 export type CandidateProfile = z.infer<typeof CandidateProfileSchema>;
+
+export interface CandidateAchievementItem {
+  text: string;
+  source?: string;
+}
+
+export function getProfileAchievements(profile: CandidateProfile): CandidateAchievementItem[] {
+  if (!profile.achievements) return [];
+  return profile.achievements.map((item) => {
+    if (typeof item === 'string') {
+      return {
+        text: item,
+        source: profile.achievementsSource,
+      };
+    }
+    return {
+      text: item.text,
+      source: item.source || profile.achievementsSource,
+    };
+  });
+}
 
 /**
  * Checks whether candidate profile or resume contains any unresolved [FILL] markers

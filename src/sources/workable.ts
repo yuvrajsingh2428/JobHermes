@@ -80,7 +80,7 @@ export class WorkableSource implements JobSource {
       logger.error(`Error fetching Workable jobs for ${target.name} (${slug})`, {
         error: String(err),
       });
-      return [];
+      throw err;
     }
   }
 }

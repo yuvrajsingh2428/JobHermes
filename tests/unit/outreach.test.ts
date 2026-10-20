@@ -395,21 +395,51 @@ describe('Phase 3 Outreach Engine, Safety Rails & Grounding Tests', () => {
       expect(lint.warnings.some((w) => w.includes('Missing polite opt-out line'))).toBe(true);
     });
 
-    it('refuses to generate real-mode drafts if achievements contain [FILL] placeholders or demo sandbox values', () => {
-      const demoProfile: CandidateProfile = {
+    it('accepts real-mode profile with real achievement containing 60% and generates drafts successfully', () => {
+      const realProfileWith60: CandidateProfile = {
         ...validProfile,
         achievements: [
           'built automated regression suites reducing manual test cycles by 60%',
-          'built hybrid automation framework reducing execution time by 45%',
+          'built hybrid automation framework scaling coverage across microservices',
+        ],
+      };
+
+      const contact = storage.getContactById(testContactId)!;
+      const pack = generator.generateDrafts(
+        realProfileWith60,
+        sampleJob,
+        contact,
+        sampleCompany,
+        [],
+        {
+          allowFillForDemo: false,
+        }
+      );
+
+      expect(pack.variantA.body).toContain(
+        'built automated regression suites reducing manual test cycles by 60%'
+      );
+      expect(pack.variantA.lint.valid).toBe(true);
+      expect(pack.variantB.lint.valid).toBe(true);
+    });
+
+    it('refuses real-mode drafts if achievements carry source="demo" or [FILL] placeholders', () => {
+      const demoFlaggedProfile: CandidateProfile = {
+        ...validProfile,
+        achievements: [
+          {
+            text: 'built automated regression suites reducing manual test cycles by 60%',
+            source: 'demo',
+          },
         ],
       };
 
       const contact = storage.getContactById(testContactId)!;
       expect(() => {
-        generator.generateDrafts(demoProfile, sampleJob, contact, sampleCompany, [], {
+        generator.generateDrafts(demoFlaggedProfile, sampleJob, contact, sampleCompany, [], {
           allowFillForDemo: false,
         });
-      }).toThrow(/placeholders or demo values/);
+      }).toThrow(/source="demo"/i);
 
       const fillProfile: CandidateProfile = {
         ...validProfile,
@@ -419,7 +449,42 @@ describe('Phase 3 Outreach Engine, Safety Rails & Grounding Tests', () => {
         generator.generateDrafts(fillProfile, sampleJob, contact, sampleCompany, [], {
           allowFillForDemo: false,
         });
-      }).toThrow(/placeholders or demo values|unresolved \[FILL\] markers/);
+      }).toThrow(/placeholders or are flagged with source="demo"|unresolved \[FILL\] markers/);
+    });
+
+    it('flags unsupported company claims like focus on, known for, scalable, your platform when no signal/brief exists', () => {
+      const draftWithClaim =
+        "Hi Priya,\n\nI noticed the SDET role at HackerRank. Given HackerRank's focus on scalable platforms, I wanted to reach out. Over the past 2 years, I built automated test frameworks with Playwright and REST Assured. In my recent role, I scaled test coverage. Additionally, I architected api test automation framework for backend microservices.\n\nWould you be open to a brief 10-minute conversation next week to see if my testing background aligns with your team's needs?\n\nBest regards,\nCandidate\n\nP.S. If you're not the right person, no worries at all—please let me know and I won't follow up.";
+      const lint = lintOutreachDraft('SDET test automation @ HackerRank', draftWithClaim, {
+        hasSignal: false,
+        hasBrief: false,
+      });
+      expect(lint.hasUnsupportedClaims).toBe(true);
+      expect(lint.warnings.some((w) => w.includes('unsupported company claim'))).toBe(true);
+    });
+
+    it('generates drafts with zero company claims when neither signal nor brief exists, citing only role title', () => {
+      const contact = storage.getContactById(testContactId)!;
+      const emptyCompany: CompanyRecord = {
+        ...sampleCompany,
+        researchBrief: undefined,
+      };
+      const pack = generator.generateDrafts(validProfile, sampleJob, contact, emptyCompany, [], {
+        allowFillForDemo: false,
+      });
+
+      expect(pack.variantA.body).not.toMatch(
+        /focus on|known for|given HackerRank's|your platform|scalable|quality initiatives|engineering goals/i
+      );
+      expect(pack.variantB.body).not.toMatch(
+        /focus on|known for|given HackerRank's|your platform|scalable|quality initiatives|engineering goals/i
+      );
+      expect(pack.variantA.body).not.toContain('I am writing regarding');
+      expect(pack.variantB.body).not.toContain('I am writing regarding');
+      expect(pack.variantB.body).not.toContain('I focus on building reliable CI test pipelines');
+      expect(pack.variantB.body).not.toContain('next Tuesday');
+      expect(pack.variantA.lint.valid).toBe(true);
+      expect(pack.variantB.lint.valid).toBe(true);
     });
 
     it('uses profile fields verbatim in candidate sentences without generated purpose clauses', () => {
@@ -943,4 +1008,248 @@ describe('Phase 3 Outreach Engine, Safety Rails & Grounding Tests', () => {
       expect(scored[0].reasons?.some((r) => r.includes('Ignored demo/test signal'))).toBe(true);
     });
   });
+
+  // ─── 8. Sentence Assembly, Grammar Integrity & Lint Rules for All Grounding Paths ─
+  describe('Sentence Assembly & Grammar Integrity across All Four Grounding Paths', () => {
+    const generator = new DraftGenerator();
+
+    function assertGrammaticalParagraphs(body: string) {
+      const paragraphs = body.split('\n\n').filter((p) => p.trim().length > 0);
+      for (let i = 0; i < paragraphs.length; i++) {
+        const trimmed = paragraphs[i].trim();
+        // Every paragraph must start capitalised
+        expect(trimmed).toMatch(/^[A-Z]/);
+        // Forbidden stale phrases across all blocks
+        expect(trimmed).not.toContain("I've been following");
+        expect(trimmed).not.toContain("your team's update");
+        expect(trimmed).not.toContain('(DEMO)');
+
+        // Body sentence blocks (opening, achievements, ask, P.S.) must be well-formed sentences
+        const isSignOff = trimmed.startsWith('Best regards,') || trimmed.startsWith('Thanks,') || trimmed.startsWith('Hi ');
+        if (!isSignOff) {
+          // Starts capitalised and ends with a period or question mark
+          expect(trimmed).toMatch(/^[A-Z].*[.?]$/s);
+          // No dangling comma before period or newline
+          expect(trimmed).not.toMatch(/,\s*\./);
+          expect(trimmed).not.toMatch(/,\n/);
+          // No capitalised word after a comma (excluding pronoun 'I' and recognized proper noun technologies)
+          const wordsAfterComma = [...trimmed.matchAll(/,\s+([A-Za-z]+)/g)].map((m) => m[1]);
+          for (const word of wordsAfterComma) {
+            if (/^[A-Z]/.test(word)) {
+              expect([
+                'I',
+                'Java',
+                'Playwright',
+                'Selenium',
+                'REST',
+                'Postman',
+                'Cypress',
+                'Jenkins',
+                'Docker',
+                'AWS',
+              ]).toContain(word);
+            }
+          }
+        }
+      }
+
+      // Opening and Achievement paragraphs must end with a period
+      expect(paragraphs[1]).toMatch(/\.$/);
+      expect(paragraphs[2]).toMatch(/\.$/);
+      // Ask paragraph must end with a question mark
+      expect(paragraphs[3]).toMatch(/\?$/);
+      // P.S. must end with a period
+      expect(paragraphs[paragraphs.length - 1]).toMatch(/\.$/);
+    }
+
+    it('generates grammatical drafts with brief only, asserting accurate brief wording and valid lint', () => {
+      const contact = storage.getContactById(testContactId)!;
+      const companyWithBrief: CompanyRecord = {
+        ...sampleCompany,
+        researchBrief: JSON.stringify({
+          whatTheyBuild: 'technical assessment and remote coding interview platforms',
+          recentSpecificThing: 'AI-powered test candidate evaluation',
+        }),
+      };
+
+      const pack = generator.generateDrafts(validProfile, sampleJob, contact, companyWithBrief, [], {
+        allowFillForDemo: false,
+      });
+
+      assertGrammaticalParagraphs(pack.variantA.body);
+      assertGrammaticalParagraphs(pack.variantB.body);
+
+      // Asserts brief wording uses "I noticed" rather than "I've been following"
+      expect(pack.variantA.body).toContain(
+        "I noticed HackerRank's work on AI-powered test candidate evaluation."
+      );
+      expect(pack.variantB.body).toContain(
+        "I noticed HackerRank's work on AI-powered test candidate evaluation."
+      );
+
+      expect(pack.variantA.lint.valid).toBe(true);
+      expect(pack.variantB.lint.valid).toBe(true);
+      expect(pack.variantA.lint.wordCount).toBeGreaterThanOrEqual(80);
+      expect(pack.variantA.lint.wordCount).toBeLessThanOrEqual(120);
+      expect(pack.variantB.lint.wordCount).toBeGreaterThanOrEqual(80);
+      expect(pack.variantB.lint.wordCount).toBeLessThanOrEqual(120);
+    });
+
+    it('generates grammatical drafts with signal only, asserting accurate signal wording and valid lint', () => {
+      const contact = storage.getContactById(testContactId)!;
+      const companyWithoutBrief: CompanyRecord = {
+        ...sampleCompany,
+        researchBrief: undefined,
+      };
+      const signals: SignalRecord[] = [
+        {
+          companyId: sampleCompany.id!,
+          signalType: 'hiring_post',
+          detail: 'VP of Eng posted expanding the SDET automation team',
+          url: 'https://linkedin.com/posts/hackerrank-sdet-123',
+          source: 'linkedin',
+        },
+      ];
+
+      const pack = generator.generateDrafts(
+        validProfile,
+        sampleJob,
+        contact,
+        companyWithoutBrief,
+        signals,
+        {
+          allowFillForDemo: false,
+        }
+      );
+
+      assertGrammaticalParagraphs(pack.variantA.body);
+      assertGrammaticalParagraphs(pack.variantB.body);
+
+      // Asserts signal wording uses "I saw a post about <detail>" rather than "your team's update"
+      expect(pack.variantA.body).toContain(
+        'I saw a post about VP of Eng posted expanding the SDET automation team regarding the Software Development Engineer in Test II role at HackerRank.'
+      );
+      expect(pack.variantB.body).toContain(
+        'I saw the Software Development Engineer in Test II opening at HackerRank after I saw a post about VP of Eng posted expanding the SDET automation team.'
+      );
+
+      expect(pack.variantA.lint.valid).toBe(true);
+      expect(pack.variantB.lint.valid).toBe(true);
+      expect(pack.variantA.lint.wordCount).toBeGreaterThanOrEqual(80);
+      expect(pack.variantA.lint.wordCount).toBeLessThanOrEqual(120);
+      expect(pack.variantB.lint.wordCount).toBeGreaterThanOrEqual(80);
+      expect(pack.variantB.lint.wordCount).toBeLessThanOrEqual(120);
+    });
+
+    it('generates grammatical drafts with both brief and signal, asserting combined factual claims and valid lint', () => {
+      const contact = storage.getContactById(testContactId)!;
+      const companyWithBrief: CompanyRecord = {
+        ...sampleCompany,
+        researchBrief: JSON.stringify({
+          whatTheyBuild: 'technical assessment and remote coding interview platforms',
+          recentSpecificThing: 'AI-powered test candidate evaluation',
+        }),
+      };
+      const signals: SignalRecord[] = [
+        {
+          companyId: sampleCompany.id!,
+          signalType: 'hiring_post',
+          detail: 'VP of Eng posted expanding the SDET automation team',
+          url: 'https://linkedin.com/posts/hackerrank-sdet-123',
+          source: 'linkedin',
+        },
+      ];
+
+      const pack = generator.generateDrafts(
+        validProfile,
+        sampleJob,
+        contact,
+        companyWithBrief,
+        signals,
+        {
+          allowFillForDemo: false,
+        }
+      );
+
+      assertGrammaticalParagraphs(pack.variantA.body);
+      assertGrammaticalParagraphs(pack.variantB.body);
+
+      expect(pack.variantA.body).toContain(
+        "I noticed HackerRank's work on AI-powered test candidate evaluation and saw a post about VP of Eng posted expanding the SDET automation team."
+      );
+      expect(pack.variantB.body).toContain(
+        "I noticed HackerRank's work on AI-powered test candidate evaluation and saw a post about VP of Eng posted expanding the SDET automation team."
+      );
+
+      expect(pack.variantA.lint.valid).toBe(true);
+      expect(pack.variantB.lint.valid).toBe(true);
+      expect(pack.variantA.lint.wordCount).toBeGreaterThanOrEqual(80);
+      expect(pack.variantA.lint.wordCount).toBeLessThanOrEqual(120);
+      expect(pack.variantB.lint.wordCount).toBeGreaterThanOrEqual(80);
+      expect(pack.variantB.lint.wordCount).toBeLessThanOrEqual(120);
+    });
+
+    it('generates grammatical drafts with neither brief nor signal, asserting zero company claims and valid lint', () => {
+      const contact = storage.getContactById(testContactId)!;
+      const companyEmpty: CompanyRecord = {
+        ...sampleCompany,
+        researchBrief: undefined,
+      };
+
+      const pack = generator.generateDrafts(validProfile, sampleJob, contact, companyEmpty, [], {
+        allowFillForDemo: false,
+      });
+
+      assertGrammaticalParagraphs(pack.variantA.body);
+      assertGrammaticalParagraphs(pack.variantB.body);
+
+      expect(pack.variantA.body).toContain(
+        'I came across the Software Development Engineer in Test II role at HackerRank and wanted to reach out directly.'
+      );
+      expect(pack.variantB.body).toContain(
+        'I saw the Software Development Engineer in Test II opening at HackerRank and wanted to reach out directly.'
+      );
+
+      expect(pack.variantA.lint.valid).toBe(true);
+      expect(pack.variantB.lint.valid).toBe(true);
+      expect(pack.variantA.lint.wordCount).toBeGreaterThanOrEqual(80);
+      expect(pack.variantA.lint.wordCount).toBeLessThanOrEqual(120);
+      expect(pack.variantB.lint.wordCount).toBeGreaterThanOrEqual(80);
+      expect(pack.variantB.lint.wordCount).toBeLessThanOrEqual(120);
+    });
+
+    it('lint word-count rule warns when draft body exceeds 120 words (122 words must warn)', () => {
+      // 122 words draft body
+      const words122 = [
+        'Hi Priya,',
+        '',
+        'I came across the Software Development Engineer in Test II role at HackerRank and wanted to reach out directly.',
+        'Over the past 2 years, I have specialized in test automation with Playwright, Selenium, and REST Assured.',
+        '',
+        'In my recent role, I architected an automation framework scaling coverage across services.',
+        'Additionally, I designed backend API test suites reducing manual testing cycles by 60%.',
+        'Furthermore, I implemented automated quality gates within continuous integration deployment pipelines across distributed engineering teams.',
+        '',
+        'Would you be open to a brief 10-minute conversation next week to see if my testing background aligns with your team?',
+        '',
+        'Best regards,',
+        'Candidate',
+        '',
+        "P.S. If you're not the right person, no worries at all—please let me know and I won't follow up.",
+      ].join('\n');
+
+      const wordCount = words122.trim().split(/\s+/).filter(Boolean).length;
+      expect(wordCount).toBe(122);
+
+      const lint = lintOutreachDraft('SDET test automation @ HackerRank', words122, {
+        hasSignal: true,
+        hasBrief: true,
+      });
+
+      expect(lint.valid).toBe(false);
+      expect(lint.wordCount).toBe(122);
+      expect(lint.warnings).toContain('Draft body exceeds 120 words (122 words; target is 80-120)');
+    });
+  });
 });
+
