@@ -73,4 +73,11 @@
 4. **Localhost-Only Single-User Security Model**: The Express dashboard server binds strictly to `127.0.0.1` and is protected by `X-Hermes-Token` authentication and strict Origin/Referer CSRF validation. It is intentionally designed as a local developer tool, not a multi-tenant or publicly accessible web service.
 5. **Zero Fabrication of Candidate Skills & Experience**: Resume tailoring and outreach drafting strictly forbid adding skills, years of experience, or metrics not already present in the candidate profile or base resume. Any keyword gap is surfaced for candidate review rather than hallucinated.
 6. **Clock Overrides Restricted to Test Execution**: Test clocks cannot be passed or overridden via HTTP parameters, request headers, or runtime environment variables in production mode. Dynamic time travel is only accessible via programmatically set in-memory hooks during test execution (`NODE_ENV === 'test'`).
+7. **Jobs of a company that removes all postings are never auto-closed (empty-response guard)**: When an ATS API returns 200 with an empty job list for a company that previously had active jobs, miss counting is skipped to guard against transient empty responses. Consequently, jobs of a company that legitimately removes all postings are never auto-closed by the automated scanner.
+
+---
+
+## Backlog & Future Improvements
+- [ ] Jobs of a company that removes all postings are never auto-closed (empty-response guard)
+
 

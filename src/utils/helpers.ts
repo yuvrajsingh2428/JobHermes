@@ -4,6 +4,7 @@
 
 import fs from 'fs';
 import path from 'path';
+export { validateSignalDetail } from '../types';
 
 /**
  * Sleep for a given number of milliseconds

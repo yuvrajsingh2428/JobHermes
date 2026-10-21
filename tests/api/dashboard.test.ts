@@ -63,7 +63,7 @@ describe('Phase 4 Dashboard Server & REST API Tests', () => {
       score: 75,
       scoreBreakdown: { title: 20, skills: 25, experience: 20, remote: 10, total: 75 },
       reasons: ['Strong Playwright match'],
-      status: 'discovered',
+      status: 'new',
       isApplied: false,
       scrapedAt: new Date().toISOString(),
       source: 'greenhouse',
@@ -79,7 +79,7 @@ describe('Phase 4 Dashboard Server & REST API Tests', () => {
       score: 48,
       scoreBreakdown: { title: 15, skills: 15, experience: 10, remote: 8, total: 48 },
       reasons: ['Near miss SDET match'],
-      status: 'discovered',
+      status: 'new',
       isApplied: false,
       scrapedAt: new Date().toISOString(),
       source: 'greenhouse',
@@ -95,7 +95,7 @@ describe('Phase 4 Dashboard Server & REST API Tests', () => {
       score: 25,
       scoreBreakdown: { title: 5, skills: 10, experience: 5, remote: 5, total: 25 },
       reasons: ['Lacks automated testing'],
-      status: 'discovered',
+      status: 'new',
       isApplied: false,
       scrapedAt: new Date().toISOString(),
       source: 'greenhouse',
@@ -215,7 +215,41 @@ describe('Phase 4 Dashboard Server & REST API Tests', () => {
 
     const companyId = 1;
 
-    // Add signal
+    // Validate error handling on short detail (< 3 words)
+    const shortRes = await fetch(`${baseUrl}/api/signals`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Hermes-Token': server.getLocalToken(),
+      },
+      body: JSON.stringify({
+        companyId,
+        signalType: 'hiring_post',
+        detail: 'Series B',
+      }),
+    });
+    expect(shortRes.status).toBe(400);
+    const shortData = await shortRes.json();
+    expect(shortData.error).toContain('3-15 words');
+
+    // Validate error handling when starting with a verb like 'posted'
+    const verbRes = await fetch(`${baseUrl}/api/signals`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'X-Hermes-Token': server.getLocalToken(),
+      },
+      body: JSON.stringify({
+        companyId,
+        signalType: 'hiring_post',
+        detail: 'posted expanding the SDET automation team in Bangalore',
+      }),
+    });
+    expect(verbRes.status).toBe(400);
+    const verbData = await verbRes.json();
+    expect(verbData.error).toContain('not start with a verb like "posted"');
+
+    // Add valid signal (3-15 words noun phrase)
     const sigRes = await fetch(`${baseUrl}/api/signals`, {
       method: 'POST',
       headers: {

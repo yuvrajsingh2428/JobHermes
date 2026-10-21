@@ -9,7 +9,7 @@ import { DashboardServer } from './dashboard/server';
 import { runVerifyTargets } from './sources/verify-targets';
 import { addCompanyFromUrl } from './sources/add-company';
 import { runDoctor } from './utils/doctor';
-import { hasFillMarkers, SignalType, CandidateProfile } from './types';
+import { hasFillMarkers, SignalType, CandidateProfile, validateSignalDetail } from './types';
 import { StorageService } from './storage/database';
 import { ContactService } from './contacts/contact-service';
 import { DraftGenerator, lintOutreachDraft } from './outreach/draft-generator';
@@ -66,8 +66,18 @@ async function main(): Promise<void> {
       if (!companyName || !detail) {
         logger.error('Usage: npm run signal add <company> <type> <detail> [url]');
         logger.info(
+          'Detail format: 3-15 words noun phrase, e.g. "the SDET team expanding in Bangalore" (do not start with a verb like "posted")'
+        );
+        logger.info(
           'Types: funding | hiring_post | multiple_qa_roles | product_launch | headcount_growth | layoffs | other'
         );
+        process.exit(1);
+      }
+
+      const detailValidation = validateSignalDetail(detail);
+      if (!detailValidation.valid) {
+        logger.error(`Invalid signal detail: ${detailValidation.error}`);
+        logger.info('Example format: "the SDET team expanding in Bangalore"');
         process.exit(1);
       }
 
@@ -741,7 +751,7 @@ async function main(): Promise<void> {
       '  doctor                                Diagnostic check on candidate profile and system state'
     );
     logger.info(
-      '  signal add <company> <type> <detail>  Record company growth/hiring signal for score bonus'
+      '  signal add <company> <type> <detail>  Record company signal (detail: 3-15 words noun phrase, e.g. "the SDET team expanding in Bangalore")'
     );
     logger.info('  signal list [company]                 Display company signals');
     logger.info(

@@ -13,6 +13,7 @@ import {
   JobPosting,
   CompanyRecord,
   SignalRecord,
+  validateSignalDetail,
 } from '../../src/types';
 
 describe('Phase 3 Outreach Engine, Safety Rails & Grounding Tests', () => {
@@ -1130,7 +1131,7 @@ describe('Phase 3 Outreach Engine, Safety Rails & Grounding Tests', () => {
         'I saw a post about VP of Eng posted expanding the SDET automation team regarding the Software Development Engineer in Test II role at HackerRank.'
       );
       expect(pack.variantB.body).toContain(
-        'I saw the Software Development Engineer in Test II opening at HackerRank after I saw a post about VP of Eng posted expanding the SDET automation team.'
+        'I saw the Software Development Engineer in Test II opening at HackerRank. I also saw a post about VP of Eng posted expanding the SDET automation team.'
       );
 
       expect(pack.variantA.lint.valid).toBe(true);
@@ -1251,5 +1252,73 @@ describe('Phase 3 Outreach Engine, Safety Rails & Grounding Tests', () => {
       expect(lint.warnings).toContain('Draft body exceeds 120 words (122 words; target is 80-120)');
     });
   });
+
+  // ─── 9. Signal Detail Format Validation ─────────────────────────────
+  describe('Signal Detail Format Validation', () => {
+    it('rejects details with fewer than 3 words', () => {
+      expect(validateSignalDetail('Series B').valid).toBe(false);
+      expect(validateSignalDetail('Series B').error).toContain('3-15 words');
+      expect(validateSignalDetail('').valid).toBe(false);
+    });
+
+    it('rejects details with more than 15 words', () => {
+      const longDetail =
+        'this is a very long signal detail description that exceeds fifteen words in total length and should fail';
+      expect(validateSignalDetail(longDetail).valid).toBe(false);
+      expect(validateSignalDetail(longDetail).error).toContain('3-15 words');
+    });
+
+    it('rejects details that start with a verb like "posted"', () => {
+      expect(validateSignalDetail('posted hiring SDETs in Bangalore').valid).toBe(false);
+      expect(validateSignalDetail('posted hiring SDETs in Bangalore').error).toContain(
+        'not start with a verb like "posted"'
+      );
+
+      expect(validateSignalDetail('announced Series C funding today').valid).toBe(false);
+      expect(validateSignalDetail('launched new test platform in US').valid).toBe(false);
+      expect(validateSignalDetail('hired new VP of Quality Engineering').valid).toBe(false);
+      expect(validateSignalDetail('expanding the automation engineering organization').valid).toBe(
+        false
+      );
+    });
+
+    it('accepts valid short noun-phrase style descriptions (3-15 words)', () => {
+      const valid1 = validateSignalDetail('the SDET team expanding in Bangalore');
+      expect(valid1.valid).toBe(true);
+
+      const valid2 = validateSignalDetail('Series B funding of $25M led by Accel');
+      expect(valid2.valid).toBe(true);
+
+      const valid3 = validateSignalDetail('VP of Eng posted looking for SDETs');
+      expect(valid3.valid).toBe(true);
+    });
+
+    it('StorageService.addSignal enforces detail validation and throws on invalid detail', () => {
+      expect(() => {
+        storage.addSignal({
+          companyId: testCompanyId,
+          signalType: 'hiring_post',
+          detail: 'posted a job',
+        });
+      }).toThrow(/Invalid signal detail/);
+
+      expect(() => {
+        storage.addSignal({
+          companyId: testCompanyId,
+          signalType: 'funding',
+          detail: 'Seed round', // only 2 words
+        });
+      }).toThrow(/3-15 words/);
+
+      // Valid signal succeeds
+      const id = storage.addSignal({
+        companyId: testCompanyId,
+        signalType: 'hiring_post',
+        detail: 'the SDET team expanding in Bangalore',
+      });
+      expect(id).toBeGreaterThan(0);
+    });
+  });
 });
+
 

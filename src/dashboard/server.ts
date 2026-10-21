@@ -8,7 +8,7 @@ import fs from 'fs';
 import crypto from 'crypto';
 import { HermesAgent } from '../agent/hermes-agent';
 import { logger } from '../utils/logger';
-import { ApplicationStatus, CandidateProfile, CompanyTarget, OutreachOutcome } from '../types';
+import { ApplicationStatus, CandidateProfile, CompanyTarget, OutreachOutcome, validateSignalDetail } from '../types';
 import { ResumeTailor } from '../outreach/resume-tailor';
 import { DraftGenerator, lintOutreachDraft } from '../outreach/draft-generator';
 import { SendService } from '../outreach/send-service';
@@ -427,6 +427,12 @@ export class DashboardServer {
           res
             .status(400)
             .json({ error: 'companyName/companyId, signalType, and detail are required' });
+          return;
+        }
+
+        const validation = validateSignalDetail(detail);
+        if (!validation.valid) {
+          res.status(400).json({ error: validation.error });
           return;
         }
 
