@@ -278,6 +278,69 @@ export interface SignalRecord {
   seenAt?: string;
 }
 
+/**
+ * Validates signal detail format:
+ * - Short noun-phrase style description of 3-15 words
+ * - Must not start with a verb like "posted"
+ * - Example: "the SDET team expanding in Bangalore"
+ */
+export function validateSignalDetail(detail: string): { valid: boolean; error?: string } {
+  if (!detail || typeof detail !== 'string') {
+    return {
+      valid: false,
+      error: 'Signal detail is required. Example: "the SDET team expanding in Bangalore"',
+    };
+  }
+
+  const words = detail.trim().split(/\s+/).filter(Boolean);
+  if (words.length < 3 || words.length > 15) {
+    return {
+      valid: false,
+      error: `Signal detail must be a short noun phrase of 3-15 words (got ${words.length}). Example: "the SDET team expanding in Bangalore"`,
+    };
+  }
+
+  const firstWord = words[0].toLowerCase().replace(/[^a-z]/g, '');
+  const forbiddenVerbs = new Set([
+    'posted',
+    'announced',
+    'launched',
+    'raised',
+    'hired',
+    'hiring',
+    'expanded',
+    'expanding',
+    'started',
+    'reported',
+    'shared',
+    'published',
+    'tweeted',
+    'promoted',
+    'acquired',
+    'closed',
+    'built',
+    'created',
+    'joined',
+    'added',
+    'opened',
+  ]);
+
+  const isVerbLike =
+    forbiddenVerbs.has(firstWord) ||
+    (firstWord.endsWith('ed') &&
+      firstWord.length > 3 &&
+      !['seed', 'red', 'bed', 'feed', 'speed', 'bleed'].includes(firstWord));
+
+  if (isVerbLike) {
+    return {
+      valid: false,
+      error: `Signal detail must be a short noun phrase and not start with a verb like "${words[0]}". Example: "the SDET team expanding in Bangalore"`,
+    };
+  }
+
+  return { valid: true };
+}
+
 export interface SuppressionRecord {
   email: string;
   reason: string;

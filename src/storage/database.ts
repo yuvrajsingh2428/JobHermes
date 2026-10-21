@@ -13,6 +13,7 @@ import {
   CompanyRecord,
   ContactRecord,
   SignalRecord,
+  validateSignalDetail,
   SuppressionRecord,
   OutreachRecord,
   OutreachStatus,
@@ -510,6 +511,11 @@ export class StorageService {
   // ─── Signals ───────────────────────────────────────────────
 
   addSignal(signal: Omit<SignalRecord, 'id'>): number {
+    const validation = validateSignalDetail(signal.detail);
+    if (!validation.valid) {
+      throw new Error(`Invalid signal detail: ${validation.error}`);
+    }
+
     const result = this.db
       .prepare(
         `INSERT INTO signals (company_id, signal_type, detail, url, source) VALUES (?, ?, ?, ?, ?)`

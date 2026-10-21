@@ -188,7 +188,7 @@ describe('Real Adapter Error Path End-to-End Tests', () => {
           description: 'Senior SDET test automation with Playwright and Java',
           url: `https://${companyName.toLowerCase().replace(/\s+/g, '')}.com/jobs/sdet-1`,
           score: 80,
-          status: 'discovered',
+          status: 'new',
           isApplied: false,
           scrapedAt: new Date().toISOString(),
           source: 'greenhouse',
@@ -226,7 +226,7 @@ describe('Real Adapter Error Path End-to-End Tests', () => {
         const jobs = storage.getAllJobs({ company: companyName });
         expect(jobs.length).toBe(1);
         expect(jobs[0].consecutiveMissedScans).toBe(0);
-        expect(jobs[0].status).toBe('discovered');
+        expect(jobs[0].status).toBe('new');
       }
     });
 
@@ -249,7 +249,7 @@ describe('Real Adapter Error Path End-to-End Tests', () => {
         const jobs = storage.getAllJobs({ company: companyName });
         expect(jobs.length).toBe(1);
         expect(jobs[0].consecutiveMissedScans).toBe(0);
-        expect(jobs[0].status).toBe('discovered');
+        expect(jobs[0].status).toBe('new');
       }
     });
   });

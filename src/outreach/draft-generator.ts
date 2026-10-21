@@ -288,7 +288,7 @@ export class DraftGenerator {
       citedFacts.push(`Company signal: ${validSignals[0].detail} (${validSignals[0].url})`);
     } else if (hasValidSignal) {
       openingA = `I saw a post about ${validSignals[0].detail} regarding the ${job.title} role at ${company.name}. Over the past ${years} years, I have specialized in test automation with ${topSkills}.`;
-      openingB = `I saw the ${job.title} opening at ${company.name} after I saw a post about ${validSignals[0].detail}.`;
+      openingB = `I saw the ${job.title} opening at ${company.name}. I also saw a post about ${validSignals[0].detail}.`;
       citedFacts.push(`Company signal: ${validSignals[0].detail} (${validSignals[0].url})`);
     } else if (hasBrief) {
       const briefTopic = briefObj.recentSpecificThing || briefObj.whatTheyBuild;
