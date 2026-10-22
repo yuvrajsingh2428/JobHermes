@@ -5,6 +5,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import fs from 'fs';
 import path from 'path';
+import { pathToFileURL } from 'url';
 import { httpClient } from '../../src/sources/http-client';
 import { greenhouseSource } from '../../src/sources/greenhouse';
 import { leverSource } from '../../src/sources/lever';
@@ -251,7 +252,7 @@ describe('ATS Source Contract Tests (Fixture-based, no live network)', () => {
 
   it('Playwright fallback adapter parses jobs from saved HTML fixture', async () => {
     const fixturePath = path.resolve(__dirname, '../fixtures/sources/custom-careers.html');
-    const fileUrl = `file://${fixturePath.replace(/\\/g, '/')}`;
+    const fileUrl = pathToFileURL(fixturePath).href;
 
     const target = {
       name: 'CustomTech',

@@ -1026,7 +1026,10 @@ describe('Phase 3 Outreach Engine, Safety Rails & Grounding Tests', () => {
         expect(trimmed).not.toContain('(DEMO)');
 
         // Body sentence blocks (opening, achievements, ask, P.S.) must be well-formed sentences
-        const isSignOff = trimmed.startsWith('Best regards,') || trimmed.startsWith('Thanks,') || trimmed.startsWith('Hi ');
+        const isSignOff =
+          trimmed.startsWith('Best regards,') ||
+          trimmed.startsWith('Thanks,') ||
+          trimmed.startsWith('Hi ');
         if (!isSignOff) {
           // Starts capitalised and ends with a period or question mark
           expect(trimmed).toMatch(/^[A-Z].*[.?]$/s);
@@ -1073,9 +1076,16 @@ describe('Phase 3 Outreach Engine, Safety Rails & Grounding Tests', () => {
         }),
       };
 
-      const pack = generator.generateDrafts(validProfile, sampleJob, contact, companyWithBrief, [], {
-        allowFillForDemo: false,
-      });
+      const pack = generator.generateDrafts(
+        validProfile,
+        sampleJob,
+        contact,
+        companyWithBrief,
+        [],
+        {
+          allowFillForDemo: false,
+        }
+      );
 
       assertGrammaticalParagraphs(pack.variantA.body);
       assertGrammaticalParagraphs(pack.variantB.body);
@@ -1320,5 +1330,3 @@ describe('Phase 3 Outreach Engine, Safety Rails & Grounding Tests', () => {
     });
   });
 });
-
-

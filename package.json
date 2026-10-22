@@ -12,7 +12,7 @@
     "report": "ts-node src/index.ts --report",
     "resume": "ts-node src/index.ts --resume",
     "cover-letter": "ts-node src/index.ts --cover-letter",
-    "clean": "rimraf dist",
+    "clean": "node -e \"require('fs').rmSync('dist', { recursive: true, force: true });\"",
     "lint": "eslint src --ext .ts",
     "format": "prettier --write \"src/**/*.{ts,js,json,css,html}\" \"tests/**/*.ts\"",
     "format:check": "prettier --check \"src/**/*.{ts,js,json,css,html}\" \"tests/**/*.ts\"",
@@ -52,7 +52,7 @@
   "author": "Yuvraj Singh",
   "license": "ISC",
   "engines": {
-    "node": ">=18.0.0",
+    "node": ">=20",
     "npm": ">=9.0.0"
   },
   "dependencies": {
