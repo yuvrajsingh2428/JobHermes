@@ -8,7 +8,13 @@ import fs from 'fs';
 import crypto from 'crypto';
 import { HermesAgent } from '../agent/hermes-agent';
 import { logger } from '../utils/logger';
-import { ApplicationStatus, CandidateProfile, CompanyTarget, OutreachOutcome, validateSignalDetail } from '../types';
+import {
+  ApplicationStatus,
+  CandidateProfile,
+  CompanyTarget,
+  OutreachOutcome,
+  validateSignalDetail,
+} from '../types';
 import { ResumeTailor } from '../outreach/resume-tailor';
 import { DraftGenerator, lintOutreachDraft } from '../outreach/draft-generator';
 import { SendService } from '../outreach/send-service';
@@ -889,6 +895,10 @@ export class DashboardServer {
   start(): Promise<void> {
     return new Promise((resolve) => {
       this.serverInstance = this.app.listen(this.port, '127.0.0.1', () => {
+        const addr = this.serverInstance?.address();
+        if (addr && typeof addr === 'object') {
+          this.port = addr.port;
+        }
         logger.section('Web Dashboard Server Running');
         logger.info(`Access JobHermes dashboard at: http://127.0.0.1:${this.port}`);
         resolve();
@@ -896,11 +906,20 @@ export class DashboardServer {
     });
   }
 
-  stop() {
-    if (this.serverInstance) {
-      this.serverInstance.close(() => {
-        logger.info('Web Dashboard Server stopped');
-      });
-    }
+  stop(): Promise<void> {
+    return new Promise((resolve) => {
+      if (this.serverInstance) {
+        this.serverInstance.close(() => {
+          logger.info('Web Dashboard Server stopped');
+          resolve();
+        });
+      } else {
+        resolve();
+      }
+    });
+  }
+
+  public getPort(): number {
+    return this.port;
   }
 }

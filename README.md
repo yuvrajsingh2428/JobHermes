@@ -3,6 +3,7 @@
 [![CI Test Suite & Code Quality](https://github.com/yuvrajsingh2428/JobHermes/actions/workflows/ci.yml/badge.svg)](https://github.com/yuvrajsingh2428/JobHermes/actions/workflows/ci.yml)
 ![Tests: 110 passing](https://img.shields.io/badge/Tests-110%20passing-brightgreen)
 ![Coverage: v8](https://img.shields.io/badge/Coverage-v8-brightgreen)
+![Node: >=20](https://img.shields.io/badge/Node-%3E%3D20-brightgreen)
 ![TypeScript: 5.4](https://img.shields.io/badge/TypeScript-5.4-blue)
 ![Safety: Human-in-the-Loop](https://img.shields.io/badge/Safety-Human--in--the--Loop-emerald)
 ![Default Mode: Dry-Run Only](https://img.shields.io/badge/Default%20Mode-Dry--Run%20Only-orange)
@@ -70,10 +71,12 @@ Traditional job hunting tools fail automation engineers because they cannot diff
 
 ### Step 1: Clone and Install Dependencies
 
+Ensure **Node.js >= 20.0.0** and **npm >= 9.0.0** are installed:
+
 ```bash
 git clone https://github.com/yuvrajsingh2428/JobHermes.git
 cd JobHermes
-npm install
+npm install # or npm ci
 ```
 
 ### Step 2: Configure Environment

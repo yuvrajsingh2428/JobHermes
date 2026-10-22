@@ -21,12 +21,20 @@ describe('Phase 5 Playwright E2E Tests on demo.db', () => {
   let agent: HermesAgent;
   let storage: StorageService;
 
-  const testPort = 3989;
-  const baseUrl = `http://127.0.0.1:${testPort}`;
+  let testPort: number;
+  let baseUrl: string;
   const testDbPath = path.resolve(__dirname, '../fixtures/test-e2e-demo.db');
 
   beforeAll(async () => {
-    // 1. Setup isolated test database from demo seed
+    // 1. Ensure runtime directories exist
+    fs.mkdirSync(path.resolve('./output/eml'), { recursive: true });
+    fs.mkdirSync(path.resolve('./data'), { recursive: true });
+    fs.mkdirSync(path.resolve('./logs'), { recursive: true });
+    fs.mkdirSync(path.resolve('./reports'), { recursive: true });
+    fs.mkdirSync(path.resolve('./documents'), { recursive: true });
+    fs.mkdirSync(path.resolve(__dirname, '../fixtures'), { recursive: true });
+
+    // 2. Setup isolated test database from demo seed
     if (fs.existsSync(testDbPath)) fs.unlinkSync(testDbPath);
     seedDemoSandbox(testDbPath);
 
@@ -55,11 +63,13 @@ describe('Phase 5 Playwright E2E Tests on demo.db', () => {
     agent = new HermesAgent(testConfig);
     storage = agent.getStorage();
 
-    // 2. Start server
-    server = new DashboardServer(agent, testPort);
+    // 3. Start server on a free port (port 0)
+    server = new DashboardServer(agent, 0);
     await server.start();
+    testPort = server.getPort();
+    baseUrl = `http://127.0.0.1:${testPort}`;
 
-    // 3. Launch headless Playwright Chromium
+    // 4. Launch headless Playwright Chromium
     browser = await chromium.launch({ headless: true });
     page = await browser.newPage();
   });

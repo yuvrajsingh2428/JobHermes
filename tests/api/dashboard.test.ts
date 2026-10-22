@@ -11,8 +11,8 @@ describe('Phase 4 Dashboard Server & REST API Tests', () => {
   let server: DashboardServer;
   let agent: HermesAgent;
   let storage: StorageService;
-  const testPort = 3987;
-  const baseUrl = `http://127.0.0.1:${testPort}`;
+  let testPort: number;
+  let baseUrl: string;
   const testDbPath = path.resolve(__dirname, '../fixtures/test-dashboard.db');
 
   beforeAll(async () => {
@@ -123,13 +123,15 @@ describe('Phase 4 Dashboard Server & REST API Tests', () => {
       status: 'draft',
     });
 
-    // Start server strictly on 127.0.0.1
-    server = new DashboardServer(agent, testPort);
+    // Start server strictly on 127.0.0.1 on a free dynamic port
+    server = new DashboardServer(agent, 0);
     await server.start();
+    testPort = server.getPort();
+    baseUrl = `http://127.0.0.1:${testPort}`;
   });
 
   afterAll(async () => {
-    if (server) server.stop();
+    if (server) await server.stop();
     if (agent) agent.shutdown();
     if (fs.existsSync(testDbPath)) fs.unlinkSync(testDbPath);
   });

@@ -60,7 +60,11 @@ describe('verifyTargetSlug Error Handling across ATS Types', () => {
     vi.restoreAllMocks();
   });
 
-  const atsTypes: Array<{ ats: 'greenhouse' | 'lever' | 'ashby' | 'workable'; slug: string; name: string }> = [
+  const atsTypes: Array<{
+    ats: 'greenhouse' | 'lever' | 'ashby' | 'workable';
+    slug: string;
+    name: string;
+  }> = [
     { ats: 'greenhouse', slug: 'hackerrank', name: 'HackerRank' },
     { ats: 'lever', slug: 'spotify', name: 'Spotify' },
     { ats: 'ashby', slug: 'notion', name: 'Notion' },
@@ -126,10 +130,7 @@ describe('addCompanyFromUrl & Caller Error Handling', () => {
     // Simulate network error during verification
     vi.spyOn(httpClient, 'get').mockRejectedValueOnce(new Error('Network unreachable'));
 
-    const entry = await addCompanyFromUrl(
-      'https://boards.greenhouse.io/postman',
-      tmpConfig
-    );
+    const entry = await addCompanyFromUrl('https://boards.greenhouse.io/postman', tmpConfig);
 
     expect(entry).toBeDefined();
     expect(entry.name).toBe('Postman');

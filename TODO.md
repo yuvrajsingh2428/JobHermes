@@ -58,7 +58,7 @@
 - [x] Playwright E2E test suite running against `demo.db` (approval, dry-run fake clock send, CSV import, job filtering, closed-job exclusion)
 - [x] REST API integration tests covering all Express endpoints
 - [x] ESLint (`.eslintrc.json`), Prettier (`.prettierrc`), and Husky pre-commit hook
-- [x] GitHub Actions CI workflow (Node 18/20 matrix, lint, typecheck, unit, contract, API, E2E, coverage artifact, zero live network)
+- [x] GitHub Actions CI workflow (Node 20/22 matrix, lint, typecheck, unit, contract, API, E2E, coverage artifact, zero live network)
 - [x] `first-run` CLI reporter checking configuration completeness
 - [x] Production portfolio README with pitch, Mermaid architecture, 5-step quickstart, safety model, and design decisions
 - [x] Updated CHANGELOG.md and TODO.md
