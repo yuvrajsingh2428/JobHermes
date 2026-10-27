@@ -61,6 +61,10 @@ export class SourceCache {
   }
 
   set<T>(key: string, data: T, ttlMs?: number): void {
+    if (this.memoryMap.size >= 500) {
+      const oldestKey = this.memoryMap.keys().next().value;
+      if (oldestKey) this.memoryMap.delete(oldestKey);
+    }
     const expiresAt = Date.now() + (ttlMs ?? this.defaultTtlMs);
     const entry: CacheEntry<T> = { expiresAt, data };
     this.memoryMap.set(key, entry as CacheEntry<unknown>);

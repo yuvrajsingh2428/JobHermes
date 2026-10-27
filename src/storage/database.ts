@@ -901,6 +901,13 @@ export class StorageService {
   }
 
   close(): void {
-    this.db.close();
+    if (this.db && this.db.open) {
+      try {
+        this.db.pragma('wal_checkpoint(TRUNCATE)');
+      } catch {
+        // checkpoint errors on process shutdown ignored
+      }
+      this.db.close();
+    }
   }
 }

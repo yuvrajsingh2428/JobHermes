@@ -4,7 +4,7 @@
   "description": "Autonomous AI-powered job hunting agent",
   "main": "dist/index.js",
   "scripts": {
-    "build": "tsc",
+    "build": "tsc && node scripts/copy-assets.js",
     "build:watch": "tsc --watch",
     "start": "node dist/index.js",
     "dev": "ts-node src/index.ts",
