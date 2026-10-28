@@ -794,7 +794,7 @@ async function main(): Promise<void> {
       '  --status                              Display database statistics and top matched jobs'
     );
     logger.info(
-      '  --dashboard                           Start the local Web Dashboard (127.0.0.1:3000)'
+      '  --dashboard                           Start the local Web Dashboard (127.0.0.1:3987)'
     );
     logger.info('  --help, -h                            Show this help menu');
     logger.info('');
@@ -915,13 +915,14 @@ async function main(): Promise<void> {
   }
 
   if (flag === '--dashboard') {
-    logger.info('Starting JobHermes Dashboard Server...');
-    const dashboard = new DashboardServer(agent, 3000);
-    dashboard.start();
+    const port = parseInt(process.env.PORT || '3987', 10);
+    logger.info(`Starting JobHermes Dashboard Server on port ${port}...`);
+    const dashboard = new DashboardServer(agent, port);
+    await dashboard.start();
 
-    const shutdownDashboard = () => {
+    const shutdownDashboard = async () => {
       logger.section('Shutting Down Dashboard');
-      dashboard.stop();
+      await dashboard.stop();
       agent.shutdown();
       process.exit(0);
     };
@@ -937,19 +938,20 @@ async function main(): Promise<void> {
   const scheduler = new Scheduler(agent, config.cronSchedule, config.timezone);
   scheduler.start();
 
-  logger.info('Starting JobHermes Dashboard Server...');
-  const dashboard = new DashboardServer(agent, 3000);
-  dashboard.start();
+  const port = parseInt(process.env.PORT || '3987', 10);
+  logger.info(`Starting JobHermes Dashboard Server on port ${port}...`);
+  const dashboard = new DashboardServer(agent, port);
+  await dashboard.start();
 
   if (args.includes('--run-now')) {
     logger.info('Running immediate scan on startup...');
     await agent.runDailyScan();
   }
 
-  const shutdown = () => {
+  const shutdown = async () => {
     logger.section('Shutting Down');
     scheduler.stop();
-    dashboard.stop();
+    await dashboard.stop();
     agent.shutdown();
     process.exit(0);
   };

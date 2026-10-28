@@ -14,7 +14,16 @@ export interface MigrationFile {
 }
 
 export function loadMigrationFiles(migrationsDir?: string): MigrationFile[] {
-  const dir = migrationsDir || path.resolve(__dirname, 'migrations');
+  let dir = migrationsDir;
+  if (!dir) {
+    const candidateDirs = [
+      path.resolve(__dirname, 'migrations'),
+      path.resolve(process.cwd(), 'src/storage/migrations'),
+      path.resolve(process.cwd(), 'dist/storage/migrations'),
+      path.resolve(__dirname, '../../src/storage/migrations'),
+    ];
+    dir = candidateDirs.find((d) => fs.existsSync(d)) || path.resolve(__dirname, 'migrations');
+  }
   if (!fs.existsSync(dir)) return [];
 
   const files = fs.readdirSync(dir).filter((f) => f.endsWith('.sql'));

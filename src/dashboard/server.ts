@@ -33,7 +33,7 @@ export class DashboardServer {
   private localToken: string;
   private testClock?: Date;
 
-  constructor(agent: HermesAgent, port = 3000) {
+  constructor(agent: HermesAgent, port = parseInt(process.env.PORT || '3987', 10)) {
     this.agent = agent;
     this.port = port;
     this.localToken = crypto.randomBytes(24).toString('hex');
@@ -130,7 +130,12 @@ export class DashboardServer {
     });
 
     this.app.use(express.json());
-    const publicPath = path.join(process.cwd(), 'src', 'dashboard', 'public');
+    const publicPath =
+      [
+        path.join(__dirname, 'public'),
+        path.join(process.cwd(), 'dist', 'dashboard', 'public'),
+        path.join(process.cwd(), 'src', 'dashboard', 'public'),
+      ].find((p) => fs.existsSync(p)) || path.join(process.cwd(), 'src', 'dashboard', 'public');
     this.app.use(express.static(publicPath));
   }
 
@@ -887,7 +892,12 @@ export class DashboardServer {
 
     // SPA fallback
     this.app.use((_req, res) => {
-      const indexPath = path.join(process.cwd(), 'src', 'dashboard', 'public', 'index.html');
+      const candidatePaths = [
+        path.join(__dirname, 'public', 'index.html'),
+        path.join(process.cwd(), 'dist', 'dashboard', 'public', 'index.html'),
+        path.join(process.cwd(), 'src', 'dashboard', 'public', 'index.html'),
+      ];
+      const indexPath = candidatePaths.find((p) => fs.existsSync(p)) || candidatePaths[2];
       res.sendFile(indexPath);
     });
   }
