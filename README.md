@@ -369,6 +369,8 @@ Hi Priya, I saw the SDET role at HackerRank and wanted to reach out. Over the pa
 | `npm run outreach approve <id>` | Human approval gate allowing draft to be sent |
 | `npm run outreach send <id>` | Dispatches outreach (generates `.eml` in dry-run mode) |
 | `npm run outreach followups` | Generates 6-day follow-up drafts for unanswered emails |
+| `npm run backup` | Creates a timestamped SQLite database snapshot in `data/backups/` |
+| `npm run export` | Exports jobs, contacts, outreach, or applications to CSV or JSON |
 | `npm run dashboard` | Starts the local dark-mode Express Web Dashboard (`127.0.0.1:3987`) |
 
 ---
