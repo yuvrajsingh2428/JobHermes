@@ -19,6 +19,12 @@ import { FollowUpService } from './outreach/follow-up-service';
 import { seedDemoSandbox, getDemoDbPath } from './utils/demo-sandbox';
 import { readJsonFile } from './utils/helpers';
 import { rescoreAllJobs } from './scoring/rescore';
+import {
+  createDatabaseBackup,
+  exportData,
+  ExportEntity,
+  ExportFormat,
+} from './utils/backup-export';
 
 const rawArgs = process.argv.slice(2);
 
@@ -49,6 +55,49 @@ async function main(): Promise<void> {
 
   if (flag === 'doctor' || flag === '--doctor') {
     runDoctor();
+    return;
+  }
+
+  // ─── Backup & Export CLI ────────────────────────────────────
+  if (flag === 'backup' || flag === '--backup') {
+    try {
+      const result = createDatabaseBackup(dbPath);
+      logger.section('Database Backup Complete');
+      logger.info(`Snapshot: ${result.backupPath}`);
+      logger.info(`Size:     ${(result.sizeBytes / 1024).toFixed(1)} KB`);
+    } catch (err: any) {
+      logger.error(`Backup failed: ${err.message}`);
+      process.exit(1);
+    }
+    return;
+  }
+
+  if (flag === 'export' || flag === '--export') {
+    const entity = (args[1] || 'jobs') as ExportEntity;
+    const format = (args[2] || 'csv').toLowerCase() as ExportFormat;
+    const validEntities: ExportEntity[] = ['jobs', 'contacts', 'outreach', 'applications'];
+    const validFormats: ExportFormat[] = ['csv', 'json'];
+
+    if (!validEntities.includes(entity) || !validFormats.includes(format)) {
+      logger.error('Usage: npm run export [jobs|contacts|outreach|applications] [csv|json]');
+      logger.info('Defaults: target = jobs, format = csv');
+      process.exit(1);
+    }
+
+    const storage = new StorageService(dbPath);
+    try {
+      const result = exportData(storage, entity, format);
+      logger.section('Data Export Complete');
+      logger.info(`Entity:   ${result.entity}`);
+      logger.info(`Format:   ${result.format.toUpperCase()}`);
+      logger.info(`Records:  ${result.recordCount}`);
+      logger.info(`File:     ${result.filePath}`);
+    } catch (err: any) {
+      logger.error(`Export failed: ${err.message}`);
+      process.exit(1);
+    } finally {
+      storage.close();
+    }
     return;
   }
 
@@ -795,6 +844,12 @@ async function main(): Promise<void> {
     );
     logger.info(
       '  --dashboard                           Start the local Web Dashboard (127.0.0.1:3987)'
+    );
+    logger.info(
+      '  backup                                Create a timestamped SQLite database snapshot'
+    );
+    logger.info(
+      '  export [target] [format]              Export data (jobs|contacts|outreach|applications) to csv|json'
     );
     logger.info('  --help, -h                            Show this help menu');
     logger.info('');
