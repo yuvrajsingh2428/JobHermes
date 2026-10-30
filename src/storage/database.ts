@@ -220,11 +220,53 @@ export class StorageService {
     return rows.map((r) => this.rowToJob(r));
   }
 
+  getCompanyEmptyScans(company: string): number {
+    try {
+      const row = this.db
+        .prepare(
+          'SELECT consecutive_empty_scans FROM company_scan_states WHERE LOWER(company) = LOWER(?)'
+        )
+        .get(company) as { consecutive_empty_scans: number } | undefined;
+      return row ? row.consecutive_empty_scans : 0;
+    } catch {
+      return 0;
+    }
+  }
+
+  setCompanyEmptyScans(company: string, count: number): void {
+    try {
+      this.db
+        .prepare(
+          `
+        INSERT INTO company_scan_states (company, consecutive_empty_scans, updated_at)
+        VALUES (?, ?, datetime('now'))
+        ON CONFLICT(company) DO UPDATE SET
+          consecutive_empty_scans = excluded.consecutive_empty_scans,
+          updated_at = datetime('now')
+      `
+        )
+        .run(company, count);
+    } catch (err) {
+      logger.warn(`Could not update company scan state for ${company}:`, { error: String(err) });
+    }
+  }
+
   recordJobSightings(
     scannedCompany: string,
     seenUrls: Set<string>,
-    options?: { fetchSucceeded?: boolean; skipIfEmptyWhenHadJobs?: boolean }
-  ): { newlyClosed: number[]; activeCount: number; skipped?: boolean; reason?: string } {
+    options?: {
+      fetchSucceeded?: boolean;
+      skipIfEmptyWhenHadJobs?: boolean;
+      emptyResponseThreshold?: number;
+      forceReconcile?: boolean;
+    }
+  ): {
+    newlyClosed: number[];
+    activeCount: number;
+    skipped?: boolean;
+    reason?: string;
+    consecutiveEmptyScans?: number;
+  } {
     const existing = this.db
       .prepare(
         `SELECT id, url, consecutive_missed_scans, status FROM jobs WHERE company = ? AND status != 'closed'`
@@ -247,17 +289,38 @@ export class StorageService {
       };
     }
 
-    // 2. If response is empty (0 seen URLs) but company previously returned active jobs, do NOT count misses
-    if (seenUrls.size === 0 && existing.length > 0 && options?.skipIfEmptyWhenHadJobs !== false) {
-      logger.warn(
-        `Stale-job detection skipped for ${scannedCompany}: received empty response (0 jobs) but company has ${existing.length} previously active jobs.`
-      );
-      return {
-        newlyClosed: [],
-        activeCount: existing.length,
-        skipped: true,
-        reason: 'empty_response_with_existing_jobs',
-      };
+    const emptyThreshold = options?.emptyResponseThreshold ?? 3;
+
+    // 2. Track empty scan counts or reset when active jobs are observed
+    if (seenUrls.size > 0) {
+      this.setCompanyEmptyScans(scannedCompany, 0);
+    } else if (existing.length > 0) {
+      if (!options?.forceReconcile) {
+        const currentEmpty = this.getCompanyEmptyScans(scannedCompany) + 1;
+        this.setCompanyEmptyScans(scannedCompany, currentEmpty);
+
+        if (options?.skipIfEmptyWhenHadJobs !== false && currentEmpty < emptyThreshold) {
+          logger.warn(
+            `Stale-job detection skipped for ${scannedCompany}: received empty response (0 jobs, scan ${currentEmpty}/${emptyThreshold}) but company has ${existing.length} previously active jobs.`
+          );
+          return {
+            newlyClosed: [],
+            activeCount: existing.length,
+            skipped: true,
+            reason: 'empty_response_with_existing_jobs',
+            consecutiveEmptyScans: currentEmpty,
+          };
+        }
+
+        logger.warn(
+          `Persistent empty response confirmed for ${scannedCompany} (${currentEmpty} consecutive empty scans >= threshold ${emptyThreshold}). Proceeding to reconcile active jobs.`
+        );
+      } else {
+        logger.info(
+          `Force reconciliation active for ${scannedCompany}: reconciling existing jobs against empty response.`
+        );
+        this.setCompanyEmptyScans(scannedCompany, 0);
+      }
     }
 
     const newlyClosed: number[] = [];

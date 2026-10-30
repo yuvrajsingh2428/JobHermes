@@ -73,7 +73,11 @@ export class HermesAgent {
 
   // ─── Main Daily Scan ───────────────────────────────────────
 
-  async runDailyScan(): Promise<void> {
+  async runDailyScan(options?: {
+    forceReconcileCompanies?: string[];
+    forceReconcileAll?: boolean;
+    emptyResponseThreshold?: number;
+  }): Promise<void> {
     if (this.isScanning) {
       logger.warn('Scan already in progress, skipping scan request.');
       return;
@@ -187,6 +191,14 @@ export class HermesAgent {
         const sightings = this.storage.recordJobSightings(compName, urlSet, {
           fetchSucceeded: true,
           skipIfEmptyWhenHadJobs: true,
+          emptyResponseThreshold: options?.emptyResponseThreshold,
+          forceReconcile:
+            options?.forceReconcileAll ||
+            Boolean(
+              options?.forceReconcileCompanies?.some(
+                (c) => c.toLowerCase() === compName.toLowerCase()
+              )
+            ),
         });
 
         if (sightings.newlyClosed.length > 0) {

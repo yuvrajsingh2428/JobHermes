@@ -1,6 +1,7 @@
 # Implementation Plan & Roadmap
 
 ## Phase 1: Cleanup, ATS Sources & 100-pt SDET Scorer
+
 - [x] Delete legacy scrapers, unneeded reports, and fragile automation
 - [x] Clean dependencies; add `zod`, `pino`, `vitest`, `better-sqlite3`
 - [x] Seed `config/candidate-profile.json` and `config/base-resume.md` with explicit `[FILL]` markers
@@ -13,6 +14,7 @@
 ---
 
 ## Phase 2: Contacts & Company Research Layer
+
 - [x] Versioned SQLite migration engine with `schema_migrations` table
 - [x] New tables: `companies`, `contacts`, `signals`, `suppression_list`, `api_usage`
 - [x] Preserve existing `applications` table for direct manual tracking (`application add`, `application list`)
@@ -30,6 +32,7 @@
 ---
 
 ## Phase 3: Outreach Engine, Safety Guardrails & Tailoring
+
 - [x] `outreach` table and A/B draft generation (no fluff, fact-grounded)
 - [x] Candidate sentences grounded strictly in profile fields verbatim (no AI-invented purpose clauses)
 - [x] CLI review & approval: `outreach list`, `outreach approve <id>`, `outreach edit <id>`
@@ -44,6 +47,7 @@
 ---
 
 ## Phase 4: Express Dashboard (Localhost-Only) & Scheduler
+
 - [x] Express 127.0.0.1 localhost-only server with bearer token security
 - [x] 7 dashboard pages: Today, Jobs, Companies & Signals, Contacts, Outreach Queue, Analytics, Settings & Diagnostics
 - [x] Near-miss tier (40-59 fit) tracking with migration 4
@@ -55,6 +59,7 @@
 ---
 
 ## Phase 5: CI/CD, E2E Tests & Portfolio Documentation
+
 - [x] Playwright E2E test suite running against `demo.db` (approval, dry-run fake clock send, CSV import, job filtering, closed-job exclusion)
 - [x] REST API integration tests covering all Express endpoints
 - [x] ESLint (`.eslintrc.json`), Prettier (`.prettierrc`), and Husky pre-commit hook
@@ -73,11 +78,10 @@
 4. **Localhost-Only Single-User Security Model**: The Express dashboard server binds strictly to `127.0.0.1` and is protected by `X-Hermes-Token` authentication and strict Origin/Referer CSRF validation. It is intentionally designed as a local developer tool, not a multi-tenant or publicly accessible web service.
 5. **Zero Fabrication of Candidate Skills & Experience**: Resume tailoring and outreach drafting strictly forbid adding skills, years of experience, or metrics not already present in the candidate profile or base resume. Any keyword gap is surfaced for candidate review rather than hallucinated.
 6. **Clock Overrides Restricted to Test Execution**: Test clocks cannot be passed or overridden via HTTP parameters, request headers, or runtime environment variables in production mode. Dynamic time travel is only accessible via programmatically set in-memory hooks during test execution (`NODE_ENV === 'test'`).
-7. **Jobs of a company that removes all postings are never auto-closed (empty-response guard)**: When an ATS API returns 200 with an empty job list for a company that previously had active jobs, miss counting is skipped to guard against transient empty responses. Consequently, jobs of a company that legitimately removes all postings are never auto-closed by the automated scanner.
+7. **Configurable Empty Scan Confirmation Threshold & Force-Reconciliation**: When an ATS API returns 200 with an empty job list for a company that previously had active jobs, miss counting is deferred for transient guard protection (default: 3 scans). Upon reaching 3 consecutive confirmed empty scans (or immediately via `npm run scan -- --force-reconcile [company]`), active jobs are reconciled against the empty response and transition to 'closed'.
 
 ---
 
 ## Backlog & Future Improvements
-- [ ] Jobs of a company that removes all postings are never auto-closed (empty-response guard)
 
-
+- [x] Jobs of a company that removes all postings are never auto-closed (empty-response guard: resolved via 3-scan confirmation threshold & --force-reconcile)

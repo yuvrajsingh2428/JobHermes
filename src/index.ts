@@ -851,8 +851,21 @@ async function main(): Promise<void> {
       return;
     }
 
-    logger.info('Running immediate job scan...');
-    await agent.runDailyScan();
+    const forceReconcile =
+      args.includes('--force-reconcile') || process.argv.includes('--force-reconcile');
+    const targetCompIdx = args.indexOf('--force-reconcile');
+    const targetComp =
+      targetCompIdx !== -1 && args[targetCompIdx + 1] && !args[targetCompIdx + 1].startsWith('-')
+        ? args[targetCompIdx + 1]
+        : undefined;
+
+    logger.info(
+      `Running immediate job scan...${forceReconcile ? ` [Force-Reconcile: ${targetComp || 'All'}]` : ''}`
+    );
+    await agent.runDailyScan({
+      forceReconcileAll: forceReconcile && !targetComp,
+      forceReconcileCompanies: targetComp ? [targetComp] : undefined,
+    });
     agent.shutdown();
     return;
   }
