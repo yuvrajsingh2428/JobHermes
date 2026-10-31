@@ -62,7 +62,7 @@ Traditional job hunting tools fail automation engineers because they cannot diff
 1. **Direct ATS Ingestion**: Bypasses recruiter spam on aggregators by pulling directly from official Greenhouse, Lever, Ashby, and Workable APIs.
 2. **100-Point SDET Taxonomy**: Specifically weights automation tools (Playwright, Cypress, Selenium, Appium), API automation (REST Assured, Supertest), performance testing (k6, JMeter), and CI/CD pipelines. Manual testing roles are down-weighted or filtered out.
 3. **Resilient Sighting & Stale-Job Detection**: Automatically detects when postings are removed from an ATS. Jobs absent for 2 consecutive scans are marked `closed` and removed from daily outreach queues. Network hiccups, timeouts, or 5xx errors never prematurely close a job.
-4. **Candidate Grounding Guarantee**: Outreach drafts use profile numbers, years, and achievements *verbatim*. The system refuses to hallucinate fabricated purpose clauses like *"to accelerate testing feedback"* or *"to prevent defects before production deployment"*.
+4. **Candidate Grounding Guarantee**: Outreach drafts use profile numbers, years, and achievements _verbatim_. The system refuses to hallucinate fabricated purpose clauses like _"to accelerate testing feedback"_ or _"to prevent defects before production deployment"_.
 5. **Human-in-the-Loop & Recipient Timezone Protection**: Zero emails leave your machine autonomously. Every email requires explicit manual approval and is restricted to the recipient's local business hours (Mon-Fri 09:00-18:00).
 
 ---
@@ -131,19 +131,19 @@ npm run outreach generate <jobId> <contactId>
 
 ### 1. Environment Variables (`.env`)
 
-| Variable | Default | Purpose |
-|---|---|---|
-| `DATABASE_PATH` | `./data/jobhermes.db` | SQLite database file location |
-| `DEMO_MODE` | `false` | When `true`, uses isolated sandbox `data/demo.db` |
-| `SEND_REAL_EMAILS` | `false` | **Safety Switch**: Real sending. Keep `false` for `.eml` dry-runs |
-| `DAILY_SEND_LIMIT` | `5` | Maximum emails allowed per calendar day |
-| `MIN_SCORE_THRESHOLD` | `60` | Minimum score (out of 100) to qualify as an active match |
-| `NEAR_MISS_MIN` | `40` | Minimum score for near-miss tier tracking (40-59) |
-| `OPENAI_API_KEY` | `mock` | OpenAI API Key (`mock` enables offline mode) |
-| `OPENAI_MODEL` | `gpt-4o` | Model used for research synthesis and summaries |
-| `HUNTER_API_KEY` | *(optional)* | Hunter.io API key for contact discovery |
-| `HUNTER_MONTHLY_QUOTA`| `25` | Hard limit on Hunter API calls stored in SQLite |
-| `PORT` | `3987` | Local loopback port for the Express Web Dashboard |
+| Variable               | Default               | Purpose                                                           |
+| ---------------------- | --------------------- | ----------------------------------------------------------------- |
+| `DATABASE_PATH`        | `./data/jobhermes.db` | SQLite database file location                                     |
+| `DEMO_MODE`            | `false`               | When `true`, uses isolated sandbox `data/demo.db`                 |
+| `SEND_REAL_EMAILS`     | `false`               | **Safety Switch**: Real sending. Keep `false` for `.eml` dry-runs |
+| `DAILY_SEND_LIMIT`     | `5`                   | Maximum emails allowed per calendar day                           |
+| `MIN_SCORE_THRESHOLD`  | `60`                  | Minimum score (out of 100) to qualify as an active match          |
+| `NEAR_MISS_MIN`        | `40`                  | Minimum score for near-miss tier tracking (40-59)                 |
+| `OPENAI_API_KEY`       | `mock`                | OpenAI API Key (`mock` enables offline mode)                      |
+| `OPENAI_MODEL`         | `gpt-4o`              | Model used for research synthesis and summaries                   |
+| `HUNTER_API_KEY`       | _(optional)_          | Hunter.io API key for contact discovery                           |
+| `HUNTER_MONTHLY_QUOTA` | `25`                  | Hard limit on Hunter API calls stored in SQLite                   |
+| `PORT`                 | `3987`                | Local loopback port for the Express Web Dashboard                 |
 
 ### 2. Candidate Profile (`config/candidate-profile.json`)
 
@@ -215,28 +215,35 @@ A structured routine to maximize your interview conversion while maintaining zer
 JobHermes is engineered to protect both the job seeker's reputation and the recipient's inbox.
 
 ### 1. Mandatory Human Approval Gate
+
 Zero emails can be sent without explicit manual approval. Every draft is created with status `draft`. The sending service strictly refuses any outreach record unless transitioned to `approved` by the user.
 
 ### 2. Recipient Timezone-Aware Sending Window
+
 Outreach is permitted only during business hours: **Monday through Friday, 09:00 to 18:00**, evaluated strictly in the recipient's local timezone (e.g., `Asia/Kolkata`, `America/New_York`, `Europe/London`). Weekend sends and late-night emails are blocked across both dry-run and real modes.
 
 ### 3. Anti-Hallucination Grounding Guarantee
+
 - **Verbatim Profile Facts**: Candidate sentences are constructed verbatim from `config/candidate-profile.json`. The engine never invents fake metrics or purpose clauses.
 - **Grounded Company Claims**: Factual statements regarding company expansion, funding, or hiring must strictly originate from stored research briefs or signals with verified URLs.
 
 ### 4. Volume Caps & Circuit Breakers
+
 - **Daily Volume Cap**: Enforces a strict maximum of 5 emails per calendar day to ensure high-intent, thoughtful outreach.
 - **Max 2 Emails per Contact**: The automated follow-up engine allows exactly one gentle follow-up after 6 business days. Once a contact replies or requests suppression, outreach immediately terminates.
 - **Bounce Circuit Breaker**: If historical bounce rates exceed 10%, the sending queue halts automatically.
 
 ### 5. Safe Defaults & Refusal Engine
+
 The engine refuses real-mode execution if:
+
 - Candidate profile contains unresolved `[FILL]` markers.
 - Contact email status is unverified or marked as demo/sample.
 - Recipient is on the suppression list.
 - Real mode switch (`SEND_REAL_EMAILS`) is `false`.
 
 ### 6. Mandatory Human Review for AI Resumes & Cover Letters
+
 All tailored resumes and cover letters generated via GPT-4o or offline templates must be reviewed by hand before submission. Automated submission of AI-generated documents without human verification is strictly prohibited; the candidate retains full responsibility for verifying accuracy and factual alignment.
 
 ---
@@ -287,13 +294,13 @@ npm run typecheck
 ## Key Architectural Decisions
 
 1. **SQLite with WAL Mode over Cloud Database**:
-   - *Rationale*: A job search is private, local, and single-user. SQLite requires zero cloud credentials, stores all data on the user's local machine, and achieves microsecond latencies using Write-Ahead Logging (`journal_mode = WAL`).
+   - _Rationale_: A job search is private, local, and single-user. SQLite requires zero cloud credentials, stores all data on the user's local machine, and achieves microsecond latencies using Write-Ahead Logging (`journal_mode = WAL`).
 2. **Deterministic Offline Contract Tests over Live API Mocking**:
-   - *Rationale*: Scraping live ATS APIs during CI leads to flaky builds, rate-limiting, and dependency on external network health. Contract tests use recorded HTML/JSON payloads (`tests/fixtures/`) to verify schema stability offline.
+   - _Rationale_: Scraping live ATS APIs during CI leads to flaky builds, rate-limiting, and dependency on external network health. Contract tests use recorded HTML/JSON payloads (`tests/fixtures/`) to verify schema stability offline.
 3. **Local `.eml` Staging over Direct SMTP Dispatch**:
-   - *Rationale*: Rendering outgoing emails as standard RFC-822 `.eml` files allows the user to inspect headers, HTML structure, and recipient fields in standard desktop mail clients before committing to real sends.
+   - _Rationale_: Rendering outgoing emails as standard RFC-822 `.eml` files allows the user to inspect headers, HTML structure, and recipient fields in standard desktop mail clients before committing to real sends.
 4. **Verbatim Grounding over Unconstrained LLM Generation**:
-   - *Rationale*: Unconstrained LLMs frequently hallucinate metrics, titles, and purpose clauses. JobHermes enforces strict template constraints where candidate experience and achievements are injected verbatim.
+   - _Rationale_: Unconstrained LLMs frequently hallucinate metrics, titles, and purpose clauses. JobHermes enforces strict template constraints where candidate experience and achievements are injected verbatim.
 
 ---
 
@@ -320,7 +327,7 @@ Candidate
 P.S. If you're not the right person, please feel free to ignore and I won't follow up.
 ```
 
-*Word count: 104 words | Subject: 6 words | Lint: PASS*
+_Word count: 104 words | Subject: 6 words | Lint: PASS_
 
 ### [DEMO OUTPUT - SAMPLE GENERATED DRAFT: VARIANT B]
 
@@ -341,7 +348,7 @@ Candidate
 P.S. If you prefer not to connect, let me know and I will not follow up.
 ```
 
-*Word count: 97 words | Subject: 5 words | Lint: PASS*
+_Word count: 97 words | Subject: 5 words | Lint: PASS_
 
 ### [DEMO OUTPUT - SAMPLE GENERATED DRAFT: LINKEDIN REFERRAL DM]
 
@@ -349,12 +356,28 @@ P.S. If you prefer not to connect, let me know and I will not follow up.
 Hi Priya, I saw the SDET role at HackerRank and wanted to reach out. Over the past 2 years, I have focused on Playwright and API test automation (reducing regression runs by 60%). Would you be open to reviewing my resume for an internal referral? Happy to share details. Thanks!
 ```
 
-*Word count: 54 words | Format: Single-paragraph connection note*
+_Word count: 54 words | Format: Single-paragraph connection note_
 
 ---
 
 ## CLI Command Summary
 
+| Command                                 | Action                                                                                         |
+| --------------------------------------- | ---------------------------------------------------------------------------------------------- |
+| `npm run first-run`                     | Comprehensive onboarding diagnostic checking profile and targets                               |
+| `npm run doctor`                        | Validates environment, API keys, database, and safety settings                                 |
+| `npm run verify-targets`                | Verifies active ATS endpoints in `company-targets.json`                                        |
+| `npm run add-company <url>`             | Detects ATS, extracts slug, verifies live, and adds to targets                                 |
+| `npm run scan`                          | Scrapes all verified targets, scores postings, and detects stale jobs                          |
+| `npm run rescore`                       | Recalibrates scores for all jobs upon signal or profile changes                                |
+| `npm run import-contacts <csv>`         | Imports contacts with persona mapping and timezone defaults                                    |
+| `npm run contacts list`                 | Lists all human contacts with email verification status                                        |
+| `npm run outreach generate <jId> <cId>` | Generates grounded Variant A, Variant B, and LinkedIn DMs                                      |
+| `npm run outreach approve <id>`         | Human approval gate allowing draft to be sent                                                  |
+| `npm run outreach send <id>`            | Dispatches outreach (generates `.eml` in dry-run mode)                                         |
+| `npm run outreach followups`            | Generates 6-day follow-up drafts for unanswered emails                                         |
+| `npm run digest`                        | Displays executive daily briefing (matches, pipeline, follow-ups, actions; `--json` supported) |
+| `npm run dashboard`                     | Starts the local dark-mode Express Web Dashboard (`127.0.0.1:3987`)                            |
 | Command | Action |
 |---|---|
 | `npm run first-run` | Comprehensive onboarding diagnostic checking profile and targets |

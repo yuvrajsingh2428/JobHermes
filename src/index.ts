@@ -19,6 +19,7 @@ import { FollowUpService } from './outreach/follow-up-service';
 import { seedDemoSandbox, getDemoDbPath } from './utils/demo-sandbox';
 import { readJsonFile } from './utils/helpers';
 import { rescoreAllJobs } from './scoring/rescore';
+import { generateDailyDigest, formatDailyDigestText } from './utils/digest';
 import {
   createDatabaseBackup,
   exportData,
@@ -542,54 +543,14 @@ async function main(): Promise<void> {
 
   // ─── 8. CLI: Daily Digest ────────────────────────────────────
   if (flag === 'digest' || flag === '--digest') {
-    const isDemo = process.env.DEMO_MODE === 'true' || args.includes('--demo');
-    const storage = isDemo
-      ? new StorageService('./data/demo.db')
-      : new StorageService('./data/jobhermes.db');
+    const storage = new StorageService(dbPath);
+    const report = generateDailyDigest(storage, { isDemo });
 
-    logger.section(`JobHermes SDET Copilot Daily Digest ${isDemo ? '[DEMO SANDBOX]' : '[LIVE]'}`);
-    const allJobs = storage.getAllJobs();
-    const qualifiedJobs = allJobs.filter((j) => (j.score ?? 0) >= 60);
-    const nearMissJobs = allJobs.filter((j) => (j.score ?? 0) >= 40 && (j.score ?? 0) < 60);
-    const contacts = storage.getAllContacts();
-    const verifiedContacts = contacts.filter((c) => c.emailStatus === 'verified');
-    const outreach = storage.getAllOutreach();
-    const pendingDrafts = outreach.filter((o) => o.status === 'draft');
-    const sentToday = storage.getDailySentCount();
-    const bounceStats = storage.getRecentBounceStats();
-
-    logger.info(
-      `📅 Date: ${new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}`
-    );
-    logger.info(`⏰ Next Scheduled Scan: 08:30 AM IST (Asia/Kolkata)`);
-    logger.info('');
-    logger.info(`📊 Job Opportunities:`);
-    logger.info(`  • Total Tracked: ${allJobs.length}`);
-    logger.info(`  • Top SDET Qualified (≥60): ${qualifiedJobs.length}`);
-    logger.info(`  • Near Misses (40–59): ${nearMissJobs.length}`);
-    logger.info('');
-    logger.info(`👥 Human Contacts:`);
-    logger.info(`  • Discovered: ${contacts.length}`);
-    logger.info(`  • Verified: ${verifiedContacts.length}`);
-    logger.info('');
-    logger.info(`✉️ Outreach Pipeline:`);
-    logger.info(`  • Pending Approvals: ${pendingDrafts.length} drafts awaiting human review`);
-    logger.info(`  • Sent Today: ${sentToday} / 20 max daily cap`);
-    logger.info(
-      `  • Bounces: ${bounceStats.bounced} (Rate: ${(bounceStats.bounceRate * 100).toFixed(1)}%)`
-    );
-    logger.info('');
-
-    if (pendingDrafts.length > 0) {
-      logger.info(
-        '🎯 Action Needed: Run "npm run outreach list" to review and approve pending drafts.'
-      );
-    } else if (qualifiedJobs.length > 0 && contacts.length === 0) {
-      logger.info(
-        '🎯 Action Needed: Run "npm run contacts todo" to identify target human contacts for top jobs.'
-      );
+    if (args.includes('--json')) {
+      // Direct JSON output for shell pipelines, cron alerts, or webhooks
+      console.log(JSON.stringify(report, null, 2));
     } else {
-      logger.info('✅ System running smoothly. All queues up to date.');
+      console.log(formatDailyDigestText(report));
     }
 
     storage.close();
@@ -598,10 +559,7 @@ async function main(): Promise<void> {
 
   // ─── 9. CLI: Data Export ─────────────────────────────────────
   if (flag === 'export' || flag === '--export') {
-    const isDemo = process.env.DEMO_MODE === 'true' || args.includes('--demo');
-    const storage = isDemo
-      ? new StorageService('./data/demo.db')
-      : new StorageService('./data/jobhermes.db');
+    const storage = new StorageService(dbPath);
     const exportType = args[1] || 'all';
     const format = args[2] || 'json';
 
@@ -649,14 +607,15 @@ async function main(): Promise<void> {
     if (!fs.existsSync(backupDir)) fs.mkdirSync(backupDir, { recursive: true });
 
     const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
-    const dbPath = path.resolve('./data/jobhermes.db');
-    const backupPath = path.join(backupDir, `jobhermes-${timestamp}.db`);
+    const sourceDb = path.resolve(dbPath);
+    const backupName = isDemo ? `demo-${timestamp}.db` : `jobhermes-${timestamp}.db`;
+    const backupPath = path.join(backupDir, backupName);
 
-    if (fs.existsSync(dbPath)) {
-      fs.copyFileSync(dbPath, backupPath);
+    if (fs.existsSync(sourceDb)) {
+      fs.copyFileSync(sourceDb, backupPath);
       logger.success(`Database backed up successfully to: ${backupPath}`);
     } else {
-      logger.error(`Database not found at: ${dbPath}`);
+      logger.error(`Database not found at: ${sourceDb}`);
       process.exit(1);
     }
     return;
