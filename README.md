@@ -378,6 +378,23 @@ _Word count: 54 words | Format: Single-paragraph connection note_
 | `npm run outreach followups`            | Generates 6-day follow-up drafts for unanswered emails                                         |
 | `npm run digest`                        | Displays executive daily briefing (matches, pipeline, follow-ups, actions; `--json` supported) |
 | `npm run dashboard`                     | Starts the local dark-mode Express Web Dashboard (`127.0.0.1:3987`)                            |
+| Command | Action |
+|---|---|
+| `npm run first-run` | Comprehensive onboarding diagnostic checking profile and targets |
+| `npm run doctor` | Validates environment, API keys, database, and safety settings |
+| `npm run verify-targets` | Verifies active ATS endpoints in `company-targets.json` |
+| `npm run add-company <url>` | Detects ATS, extracts slug, verifies live, and adds to targets |
+| `npm run scan` | Scrapes all verified targets, scores postings, and detects stale jobs |
+| `npm run rescore` | Recalibrates scores for all jobs upon signal or profile changes |
+| `npm run import-contacts <csv>` | Imports contacts with persona mapping and timezone defaults |
+| `npm run contacts list` | Lists all human contacts with email verification status |
+| `npm run outreach generate <jId> <cId>` | Generates grounded Variant A, Variant B, and LinkedIn DMs |
+| `npm run outreach approve <id>` | Human approval gate allowing draft to be sent |
+| `npm run outreach send <id>` | Dispatches outreach (generates `.eml` in dry-run mode) |
+| `npm run outreach followups` | Generates 6-day follow-up drafts for unanswered emails |
+| `npm run backup` | Creates a timestamped SQLite database snapshot in `data/backups/` |
+| `npm run export` | Exports jobs, contacts, outreach, or applications to CSV or JSON |
+| `npm run dashboard` | Starts the local dark-mode Express Web Dashboard (`127.0.0.1:3987`) |
 
 ---
 
