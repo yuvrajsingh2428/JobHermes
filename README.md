@@ -15,6 +15,7 @@
 
 ## Mermaid System Architecture
 
+
 ```mermaid
 flowchart TD
     subgraph Sourcing ["1. Sourcing Layer"]
